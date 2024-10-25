@@ -132,8 +132,7 @@ static struct SSMR_Scheme _ssmrscheme[__MAX_NR_SCHEME] = {
 
 static struct SSMR_Feature _ssmr_feats[__MAX_NR_SSMR_FEATURES] = {
 #if defined(CONFIG_MTK_SEC_VIDEO_PATH_SUPPORT) ||\
-	defined(CONFIG_MTK_TEE_GP_SUPPORT) ||\
-	defined(CONFIG_MTK_SVP_ON_MTEE_SUPPORT)
+	defined(CONFIG_MTK_TEE_GP_SUPPORT)
 	[SSMR_FEAT_SVP] = {
 		.dt_prop_name = "svp-size",
 		.feat_name = "svp",
@@ -178,7 +177,7 @@ static struct SSMR_Feature _ssmr_feats[__MAX_NR_SSMR_FEATURES] = {
 		.cmd_online = "prot_sharedmem=on",
 		.cmd_offline = "prot_sharedmem=off",
 		.scheme_flag = FACE_REGISTRATION_FLAGS | FACE_PAYMENT_FLAGS |
-				FACE_UNLOCK_FLAGS | SVP_FLAGS
+				FACE_UNLOCK_FLAGS
 	},
 #endif
 #ifdef CONFIG_MTK_HAPP_MEM_SUPPORT
