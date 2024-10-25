@@ -31,13 +31,8 @@
 #ifdef CONFIG_MEDIATEK_EMI
 #define SECUER (1)
 #define NON_SECURE (0)
-
-#define IGNORE_D0_READ_VIOLATION 1
 static unsigned int is_secure(unsigned long long vio_addr)
 {
-#if IGNORE_D0_READ_VIOLATION == 1
-	return 1;
-#else
 	struct arm_smccc_res smc_res;
 	unsigned int addr_h = (vio_addr >> 32);
 	unsigned int addr_l = (vio_addr & 0xFFFFFFFF);
@@ -52,7 +47,6 @@ static unsigned int is_secure(unsigned long long vio_addr)
 	if (smc_res.a0 == 0 && smc_res.a1 == SECUER)
 		return 1;
 	return 0;
-#endif
 }
 
 #define EMI_MPUS_OFFSET (0x1F0)
