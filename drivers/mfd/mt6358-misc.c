@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2018 MediaTek, Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  * Author: Wilma Wu <wilma.wu@mediatek.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -146,7 +147,7 @@
 
 #define IPIMB
 
-
+//BSP.System - 2020.12.02 - adb reboot ftm begin
 enum rtc_spare_enum {
 	RTC_FGSOC = 0,
 	RTC_ANDROID,
@@ -163,15 +164,16 @@ enum rtc_spare_enum {
 	RTC_32K_LESS,
 	RTC_LP_DET,
 	RTC_FG_INIT,
+	RTC_FTM,
 	RTC_SPAR_NUM
 };
-
+//BSP.System - 2020.12.02 - adb reboot ftm end
 enum rtc_reg_set {
 	RTC_REG,
 	RTC_MASK,
 	RTC_SHIFT
 };
-
+//BSP.System - 2020.12.02 - adb reboot ftm begin
 u16 rtc_spare_reg[RTC_SPAR_NUM][3] = {
 	{RTC_AL_MTH, 0xff, 8},
 	{RTC_PDN1, 0xf, 0},
@@ -187,9 +189,10 @@ u16 rtc_spare_reg[RTC_SPAR_NUM][3] = {
 	{RTC_PDN2, 0x1, 15},
 	{RTC_SPAR0, 0x1, 6},
 	{RTC_SPAR0, 0x1, 7},
-	{RTC_AL_HOU, 0xff, 8}
+	{RTC_AL_HOU, 0xff, 8},
+	{RTC_SPAR0, 0x1, 8}
 };
-
+//BSP.System - 2020.12.02 - adb reboot ftm end
 /*
  * RTC_PDN1:
  *     bit 0 - 3  : Android bits
@@ -1017,7 +1020,16 @@ static void mt6358_misc_shutdown(struct platform_device *pdev)
 	else
 		mtk_rtc_enable_k_eosc();
 }
-
+//BSP.System - 2020.12.02 - adb reboot ftm begin
+void rtc_mark_ftm(void)
+{
+    unsigned long flags;
+    pr_notice("%s\n", __func__);
+    spin_lock_irqsave(&rtc_misc->lock, flags);
+    mtk_rtc_set_spare_register(RTC_FTM, 0x1);
+    spin_unlock_irqrestore(&rtc_misc->lock, flags);
+}
+//BSP.System - 2020.12.02 - adb reboot ftm end
 static int mt6358_misc_probe(struct platform_device *pdev)
 {
 	struct mt6358_chip *mt6358_chip = dev_get_drvdata(pdev->dev.parent);
