@@ -36,7 +36,6 @@ static struct adsp_feature_tb feature_table[ADSP_NUM_FEATURE_ID] = {
 	[FAST_FEATURE_ID]             = {.name = "fast"},
 	[KTV_FEATURE_ID]              = {.name = "ktv"},
 	[CAPTURE_RAW_FEATURE_ID]      = {.name = "capture_raw"},
-	[FM_ADSP_FEATURE_ID]          = {.name = "fm_adsp"},
 };
 
 int adsp_get_feature_index(const char *str)
@@ -87,12 +86,6 @@ bool adsp_feature_is_active(u32 cid)
 		return false;
 
 	return feature_ctrl[cid].total;
-}
-
-bool is_adsp_feature_in_active(void)
-{
-	// ADSP_A is the master.
-	return adsp_feature_is_active(ADSP_A_ID);
 }
 
 int _adsp_register_feature(u32 cid, u32 fid, u32 opt)
