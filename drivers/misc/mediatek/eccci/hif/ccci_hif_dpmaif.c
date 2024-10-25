@@ -827,7 +827,7 @@ static int dpmaif_net_rx_push_thread(void *arg)
 	CCCI_BOOTUP_LOG(-1, TAG, "Using batch !!!\r\n");
 #endif
 
-	while (!kthread_should_stop()) {
+	while (1) {
 		if (skb_queue_empty(&queue->skb_list.skb_list)) {
 #ifdef USING_BATCHING
 			if (!list_empty(&gro_head)) {
@@ -851,9 +851,10 @@ static int dpmaif_net_rx_push_thread(void *arg)
 				(!skb_queue_empty(&queue->skb_list.skb_list) ||
 				kthread_should_stop()));
 			if (ret == -ERESTARTSYS)
-				continue;
+				continue;	/* FIXME */
 		}
-
+		if (kthread_should_stop())
+			break;
 		skb = ccci_skb_dequeue(&queue->skb_list);
 		if (!skb)
 			continue;
@@ -2425,13 +2426,14 @@ int dpmaif_tx_done_kernel_thread(void *arg)
 
 	sched_setaffinity(0, &tmask);
 
-	while (!kthread_should_stop()) {
+	while (1) {
 		ret = wait_event_interruptible(txq->tx_done_wait,
 				(atomic_read(&txq->txq_done)
 				|| kthread_should_stop()));
+		if (kthread_should_stop())
+			break;
 		if (ret == -ERESTARTSYS)
 			continue;
-
 		atomic_set(&txq->txq_done, 0);
 		/* This is used to avoid race condition which may cause KE */
 		if (dpmaif_ctrl->dpmaif_state != HIFDPMAIF_STATE_PWRON) {
@@ -2737,9 +2739,7 @@ static int dpmaif_tx_send_skb(unsigned char hif_id, int qno,
 	unsigned long flags;
 	unsigned short prio_count = 0;
 	s64 curr_tick;
-#ifdef MT6297
 	int total_size = 0;
-#endif
 
 	/* 1. parameters check*/
 	if (!skb)
@@ -2976,9 +2976,7 @@ retry:
 		record_drb_skb(txq->index, cur_idx, skb, 0, is_frag,
 			is_last_one, phy_addr, data_len);
 		cur_idx = ringbuf_get_next_idx(txq->drb_size_cnt, cur_idx, 1);
-#ifdef MT6297
 		total_size += data_len;
-#endif
 	}
 	/* debug: tx on ccci_channel && HW Q */
 	ccci_channel_update_packet_counter(
@@ -3010,10 +3008,8 @@ retry:
 		tx_force_md_assert("HW_REG_CHK_FAIL");
 		ret = 0;
 	}
-#ifdef MT6297
 	if (ret == 0)
 		mtk_ccci_add_ul_pkt_size(total_size);
-#endif
 
 	spin_unlock_irqrestore(&txq->tx_lock, flags);
 __EXIT_FUN:
@@ -3386,20 +3382,20 @@ static int dpmaif_rx_buf_init(struct dpmaif_rx_queue *rxq)
 	CCCI_HISTORY_LOG(-1, TAG, "pit dma_pool_alloc\n");
 #endif
 #endif
-	if (rxq->pit_base == NULL) {
-		CCCI_ERROR_LOG(-1, TAG, "pit request fail\n");
-		return LOW_MEMORY_PIT;
-	}
 #else
 	CCCI_BOOTUP_LOG(-1, TAG, "Using cacheable PIT memory\r\n");
 	rxq->pit_base = kmalloc((rxq->pit_size_cnt
 			* sizeof(struct dpmaifq_normal_pit)), GFP_KERNEL);
 	if (!rxq->pit_base) {
 		CCCI_ERROR_LOG(-1, TAG, "alloc PIT memory fail\r\n");
-		return LOW_MEMORY_PIT;
+		return -1;
 	}
 	rxq->pit_phy_addr = virt_to_phys(rxq->pit_base);
 #endif
+	if (rxq->pit_base == NULL) {
+		CCCI_ERROR_LOG(-1, TAG, "pit request fail\n");
+		return LOW_MEMORY_PIT;
+	}
 	memset(rxq->pit_base, 0, DPMAIF_DL_PIT_SIZE);
 	/* dpmaif_pit_init(rxq->pit_base, rxq->pit_size_cnt); */
 
@@ -3745,9 +3741,7 @@ int dpmaif_late_init(unsigned char hif_id)
 	for (i = 0; i < DPMAIF_RXQ_NUM; i++) {
 		rx_q = &dpmaif_ctrl->rxq[i];
 		rx_q->index = i;
-		ret = dpmaif_rxq_init(rx_q);
-		if (ret < 0)
-			return ret;
+		dpmaif_rxq_init(rx_q);
 		rx_q->skb_idx = -1;
 	}
 
@@ -3763,10 +3757,7 @@ int dpmaif_late_init(unsigned char hif_id)
 	for (i = 0; i < DPMAIF_TXQ_NUM; i++) {
 		tx_q = &dpmaif_ctrl->txq[i];
 		tx_q->index = i;
-		ret = dpmaif_txq_init(tx_q);
-		if (ret < 0)
-			return ret;
-
+		dpmaif_txq_init(tx_q);
 	}
 
 	/* wakeup source init */
@@ -3805,11 +3796,8 @@ int dpmaif_start(unsigned char hif_id)
 
 	if (dpmaif_ctrl->dpmaif_state == HIFDPMAIF_STATE_PWRON)
 		return 0;
-	else if (dpmaif_ctrl->dpmaif_state == HIFDPMAIF_STATE_MIN) {
-		ret = dpmaif_late_init(hif_id);
-		if (ret < 0)
-			return ret;
-	}
+	else if (dpmaif_ctrl->dpmaif_state == HIFDPMAIF_STATE_MIN)
+		dpmaif_late_init(hif_id);
 #ifdef DPMAIF_DEBUG_LOG
 	CCCI_HISTORY_TAG_LOG(-1, TAG, "dpmaif:start\n");
 #endif

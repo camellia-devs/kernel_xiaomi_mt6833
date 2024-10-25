@@ -345,15 +345,16 @@ static int port_ipc_kernel_thread(void *arg)
 	CCCI_DEBUG_LOG(port->md_id, IPC,
 		"port %s's thread running\n", port->name);
 
-	while (!kthread_should_stop()) {
+	while (1) {
 retry:
 		if (skb_queue_empty(&port->rx_skb_list)) {
 			ret = wait_event_interruptible(port->rx_wq,
 				!skb_queue_empty(&port->rx_skb_list));
 			if (ret == -ERESTARTSYS)
-				continue;
+				continue;	/* FIXME */
 		}
-
+		if (kthread_should_stop())
+			break;
 		CCCI_DEBUG_LOG(port->md_id, IPC,
 			"read on %s\n", port->name);
 		/* 1. dequeue */
@@ -383,9 +384,7 @@ retry:
 			switch (id_map->task_id) {
 			case AP_IPC_WMT:
 #ifdef CONFIG_MTK_CONN_MD
-#ifndef CCCI_PLATFORM_MT6877
 				mtk_conn_md_bridge_send_msg(&out_ilm);
-#endif
 #endif
 				break;
 			case AP_IPC_PKTTRC:

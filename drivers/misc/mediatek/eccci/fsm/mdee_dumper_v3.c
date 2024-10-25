@@ -14,17 +14,12 @@
 #include <linux/kernel.h>
 #include <linux/rtc.h>
 #include <linux/timer.h>
-#ifdef CCCI_PLATFORM_MT6781
-#include "modem_reg_base.h"
-#endif
 #if defined(CONFIG_MTK_AEE_FEATURE)
 #include <mt-plat/aee.h>
 #endif
 #include "mdee_dumper_v3.h"
 #include "ccci_config.h"
 #include "ccci_fsm_sys.h"
-#include "modem_sys.h"
-#include "md_sys1_platform.h"
 
 #ifndef DB_OPT_DEFAULT
 #define DB_OPT_DEFAULT    (0)	/* Dummy macro define to avoid build error */
@@ -39,10 +34,8 @@ static void ccci_aed_v3(struct ccci_fsm_ee *mdee, unsigned int dump_flag,
 {
 	void *ex_log_addr = NULL;
 	int ex_log_len = 0;
-#if defined(CONFIG_MTK_AEE_FEATURE)
 	void *md_img_addr = NULL;
 	int md_img_len = 0;
-#endif
 	int info_str_len = 0;
 	char *buff;		/*[AED_STR_LEN]; */
 #if defined(CONFIG_MTK_AEE_FEATURE)
@@ -103,6 +96,10 @@ static void ccci_aed_v3(struct ccci_fsm_ee *mdee, unsigned int dump_flag,
 	if (dump_flag & CCCI_AED_DUMP_EX_PKT) {
 		ex_log_addr = (void *)dumper->ex_pl_info;
 		ex_log_len = MD_HS1_FAIL_DUMP_SIZE;
+	}
+	if (dump_flag & CCCI_AED_DUMP_MD_IMG_MEM) {
+		md_img_addr = (void *)mem_layout->md_bank0.base_ap_view_vir;
+		md_img_len = MD_IMG_DUMP_SIZE;
 	}
 	if (buff == NULL) {
 		fsm_sys_mdee_info_notify(aed_str);
@@ -270,32 +267,6 @@ static void mdee_info_dump_v3(struct ccci_fsm_ee *mdee)
 		ccci_get_per_md_data(mdee->md_id);
 	int md_dbg_dump_flag = per_md_data->md_dbg_dump_flag;
 	int ret = 0;
-#ifdef CCCI_PLATFORM_MT6781
-	struct ccci_modem *md = NULL;
-	struct md_sys1_info *md_info = NULL;
-	struct md_pll_reg *md_reg = NULL;
-
-	md = ccci_md_get_modem_by_id(md_id);
-	if (md)
-		md_info = (struct md_sys1_info *)md->private_data;
-	else {
-		CCCI_ERROR_LOG(md_id, FSM,
-			"%s: get md fail\n", __func__);
-		return;
-	}
-	if (md_info)
-		md_reg = md_info->md_pll_base;
-	else {
-		CCCI_ERROR_LOG(md_id, FSM,
-			"%s: get md private_data fail\n", __func__);
-		return;
-	}
-	if (!md_reg) {
-		CCCI_ERROR_LOG(md_id, FSM,
-			"%s: get md_reg fail\n", __func__);
-		return;
-	}
-#endif
 
 	ex_info = kmalloc(AED_STR_LEN, GFP_ATOMIC);
 	if (ex_info == NULL) {
@@ -374,16 +345,6 @@ static void mdee_info_dump_v3(struct ccci_fsm_ee *mdee)
 			mdccci_dbg->base_ap_view_vir, mdccci_dbg->size);
 		ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP,
 			mdss_dbg->base_ap_view_vir, mdss_dbg->size);
-#ifdef CCCI_PLATFORM_MT6781
-		if (md_reg->md_l2sram_base) {
-			md_cd_lock_modem_clock_src(1);
-
-			ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP,
-				md_reg->md_l2sram_base, MD_L2SRAM_SIZE);
-
-			md_cd_lock_modem_clock_src(0);
-		}
-#endif
 	}
 
 err_exit:
@@ -851,36 +812,6 @@ static void mdee_dumper_v3_dump_ee_info(struct ccci_fsm_ee *mdee,
 		ccci_get_per_md_data(mdee->md_id);
 	int md_dbg_dump_flag = per_md_data->md_dbg_dump_flag;
 	int ret = 0;
-#ifdef CCCI_PLATFORM_MT6781
-	struct ccci_modem *md = NULL;
-	struct md_sys1_info *md_info = NULL;
-	struct md_pll_reg *md_reg = NULL;
-
-	md = ccci_md_get_modem_by_id(md_id);
-	if (md)
-		md_info = (struct md_sys1_info *)md->private_data;
-	else {
-		CCCI_ERROR_LOG(md_id, FSM,
-			"%s: get md fail\n", __func__);
-		return;
-	}
-	if (md_info)
-		md_reg = md_info->md_pll_base;
-	else {
-		CCCI_ERROR_LOG(md_id, FSM,
-			"%s: get md private_data fail\n", __func__);
-		return;
-	}
-	if (!md_reg) {
-		CCCI_ERROR_LOG(md_id, FSM,
-			"%s: get md_reg fail\n", __func__);
-		return;
-	}
-	if (!md_reg->md_l2sram_base) {
-		CCCI_ERROR_LOG(md_id, FSM,
-			"%s: get md_l2sram_base fail\n", __func__);
-	}
-#endif
 
 	dumper->more_info = more_info;
 	if (level == MDEE_DUMP_LEVEL_BOOT_FAIL) {
@@ -907,13 +838,6 @@ static void mdee_dumper_v3_dump_ee_info(struct ccci_fsm_ee *mdee,
 				ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP,
 					mdss_dbg->base_ap_view_vir,
 						mdss_dbg->size);
-#ifdef CCCI_PLATFORM_MT6781
-				md_cd_lock_modem_clock_src(1);
-				ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP,
-					md_reg->md_l2sram_base, MD_L2SRAM_SIZE);
-				md_cd_lock_modem_clock_src(0);
-
-#endif
 			}
 
 			ccci_aed_v3(mdee,
@@ -927,12 +851,6 @@ static void mdee_dumper_v3_dump_ee_info(struct ccci_fsm_ee *mdee,
 				mdccci_dbg->base_ap_view_vir, mdccci_dbg->size);
 			ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP,
 				mdss_dbg->base_ap_view_vir, mdss_dbg->size);
-#ifdef CCCI_PLATFORM_MT6781
-			md_cd_lock_modem_clock_src(1);
-			ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP,
-				md_reg->md_l2sram_base, MD_L2SRAM_SIZE);
-			md_cd_lock_modem_clock_src(0);
-#endif
 		}
 		/*dump md register on no response EE*/
 		if (more_info == MD_EE_CASE_NO_RESPONSE)

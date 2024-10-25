@@ -17,11 +17,7 @@
 /* platform info */
 #define MD_GENERATION       (6297)
 #define MD_PLATFORM_INFO    "6297"
-#ifdef CCCI_PLATFORM_MT6877
-#define AP_PLATFORM_INFO    "MT6877"
-#else
 #define AP_PLATFORM_INFO    "MT6853"
-#endif
 #define CCCI_DRIVER_VER     0x20110118
 #define MT6297
 #define _97_REORDER_BAT_PAGE_TABLE_
@@ -92,11 +88,6 @@
 #define USING_TX_DONE_KERNEL_THREAD
 
 #define CCCI_USE_DFD_OFFSET_0
-
-#ifdef CCCI_PLATFORM_MT6877
-#define CCCI_DISABLE_DEVAPC_VIO_CALLBACK
-#define MTK_EMI_MPU_DISABLE
-#define DISABLE_MD_DUMP_REGISTER
-#endif
+//define CCCI_ENABLE_MPU_MEMORY_API
 
 #endif

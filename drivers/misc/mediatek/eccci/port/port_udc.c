@@ -987,16 +987,17 @@ static int port_udc_kthread_handler(void *arg)
 	CCCI_DEBUG_LOG(md_id, UDC,
 		"udc port %s's thread running\n", port->name);
 
-	while (!kthread_should_stop()) {
+	while (1) {
 		if (skb_queue_empty(&port->rx_skb_list) ||
 			skb_queue_empty(&port->rx_skb_list_hp)) {
 			ret = wait_event_interruptible(port->rx_wq,
 				!skb_queue_empty(&port->rx_skb_list) ||
 				!skb_queue_empty(&port->rx_skb_list_hp));
 			if (ret == -ERESTARTSYS)
-				continue;
+				continue;	/* FIXME */
 		}
-
+		if (kthread_should_stop())
+			break;
 		CCCI_DEBUG_LOG(md_id, UDC, "read on %s\n", port->name);
 		/* 1. dequeue */
 		if (!skb_queue_empty(&port->rx_skb_list_hp)) {
