@@ -968,10 +968,6 @@ static void msdc_init_hw(struct msdc_host *host)
 	/* Reset */
 	msdc_reset_hw(host->id);
 
-#ifdef SUPPORT_NEW_TX
-	msdc_select_new_tx(host);
-#endif
-
 	/* Disable card detection */
 	MSDC_CLR_BIT32(MSDC_PS, MSDC_PS_CDEN);
 	if (!(host->mmc->caps & MMC_CAP_NONREMOVABLE)) {
@@ -5146,8 +5142,6 @@ static void msdc_cqhci_pre_cqe_enable(struct mmc_host *mmc, bool en)
 	void __iomem *base = host->base;
 
 	if (en) {
-		/* switch to DMA mode before cmdq_enable */
-		MSDC_CLR_BIT32(MSDC_CFG, MSDC_CFG_PIO);
 		/* enable busy check */
 		MSDC_SET_BIT32(MSDC_PATCH_BIT1, MSDC_PB1_BUSY_CHECK_SEL);
 		/* default write data / busy timeout 20 * 1000ms */
