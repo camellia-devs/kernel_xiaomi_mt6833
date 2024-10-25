@@ -25,21 +25,12 @@ ifeq ($(CONFIG_MACH_MT6885),y)
   obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
 endif
 
-ifeq ($(CONFIG_MACH_MT6893),y)
-  obj-y += mt6885/
-endif
-
 ifeq ($(CONFIG_MACH_MT6873),y)
   obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
 endif
 
-ifeq (y, $(filter y, $(CONFIG_MACH_MT6833) $(CONFIG_MACH_MT6853) $(CONFIG_MACH_MT6877)))
+ifeq (y, $(filter y, $(CONFIG_MACH_MT6833) $(CONFIG_MACH_MT6853)))
 obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
-endif
-
-ifeq ($(CONFIG_MACH_MT6781),y)
-  obj-y += mt6853/
-  subdir-ccflags-y += -DDISABLE_CCU
 endif
 
 ifeq ($(CONFIG_MACH_MT8167),y)
@@ -59,6 +50,10 @@ ifeq ($(CONFIG_MACH_MT6768),y)
 endif
 
 ifeq ($(CONFIG_MACH_MT6765),y)
+  obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
+endif
+
+ifeq ($(CONFIG_MACH_MT6893),y)
   obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
 endif
 
