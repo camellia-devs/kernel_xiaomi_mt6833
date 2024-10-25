@@ -136,7 +136,7 @@ int __mtk_disp_pmqos_port_look_up(int comp_id)
 #endif
 
 #if defined(CONFIG_MACH_MT6853) || defined(CONFIG_MACH_MT6833) \
-	|| defined(CONFIG_MACH_MT6877) || defined(CONFIG_MACH_MT6781)
+	|| defined(CONFIG_MACH_MT6877)
 	case DDP_COMPONENT_OVL0:
 		return M4U_PORT_L0_OVL_RDMA0;
 	case DDP_COMPONENT_OVL0_2L:
@@ -313,7 +313,7 @@ static void mtk_drm_set_mmclk(struct drm_crtc *crtc, int level,
 	if (drm_crtc_index(crtc) != 0)
 		return;
 
-	if (level < 0 || level >= MAX_FREQ_STEP)
+	if (level < 0 || level > MAX_FREQ_STEP)
 		level = -1;
 
 	if (level == g_freq_level)

@@ -94,17 +94,7 @@ ccflags-y += -I$(srctree)/drivers/misc/mediatek/dramc/$(MTK_PLATFORM)	\
 ifeq (y, $(filter y, $(CONFIG_MACH_MT6833)))
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/include/mt-plat/mt6833/include/mach/
 else
-ifeq (y, $(filter y, $(CONFIG_MACH_MT6781)))
-ccflags-y += -I$(srctree)/drivers/misc/mediatek/include/mt-plat/mt6781/include/mach/
-else
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/include/mt-plat/$(MTK_PLATFORM)/include/mach/
-endif
-endif
-
-ifeq ($(or $(strip $(CONFIG_MTK_SVP_ON_MTEE_SUPPORT)), $(strip $(CONFIG_MTK_CAM_GENIEZONE_SUPPORT))),y)
-ccflags-y += -I$(srctree)/drivers/misc/mediatek/include/mt-plat/$(MTK_PLATFORM)/include/
-ccflags-y += -I$(srctree)/drivers/misc/mediatek/include/mt-plat/$(MTK_PLATFORM)/include/trustzone/m4u
-ccflags-y += -I$(srctree)/drivers/iommu
 endif
 
 ccflags-$(CONFIG_MTK_CMDQ_MBOX_EXT) += -I$(srctree)/drivers/misc/mediatek/cmdq/mailbox
@@ -119,7 +109,7 @@ ccflags-y += -DDISP_MDP_COLOR_ON
 ccflags-y += -DCCORR_SUPPORT
 endif
 
-ifeq (y, $(filter y, $(CONFIG_MACH_MT6833) $(CONFIG_MACH_MT6781)))
+ifeq (y, $(filter y, $(CONFIG_MACH_MT6833)))
 ccflags-y += -DNOT_SUPPORT_CABC_HW
 ccflags-y += -DDISP_MDP_COLOR_ON
 ccflags-y += -DCCORR_SUPPORT

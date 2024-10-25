@@ -180,11 +180,10 @@ static void filter_by_yuv_layers(struct drm_mtk_layering_info *disp_info)
 
 static void filter_2nd_display(struct drm_mtk_layering_info *disp_info)
 {
-	unsigned int i = 0, j = 0;
+	unsigned int i, j, layer_cnt = 0;
 
 	for (i = HRT_SECONDARY; i < HRT_TYPE_NUM; i++) {
 		unsigned int max_layer_cnt = SECONDARY_OVL_LAYER_NUM;
-		unsigned int layer_cnt = 0;
 
 		if (is_triple_disp(disp_info) && i == HRT_SECONDARY)
 			max_layer_cnt = 1;
@@ -193,8 +192,7 @@ static void filter_2nd_display(struct drm_mtk_layering_info *disp_info)
 				continue;
 
 			layer_cnt++;
-			if (layer_cnt > max_layer_cnt ||
-				(layer_cnt == max_layer_cnt && layer_cnt < disp_info->layer_num[i]))
+			if (layer_cnt > max_layer_cnt)
 				mtk_rollback_layer_to_GPU(disp_info, i, j);
 		}
 	}
@@ -270,7 +268,7 @@ static void filter_by_wcg(struct drm_device *dev,
 static bool can_be_compress(uint32_t format)
 {
 #if defined(CONFIG_MACH_MT6873) || defined(CONFIG_MACH_MT6853) || \
-	defined(CONFIG_MACH_MT6877) || defined(CONFIG_MACH_MT6781)
+	defined(CONFIG_MACH_MT6877)
 	if (mtk_is_yuv(format))
 		return 0;
 #else

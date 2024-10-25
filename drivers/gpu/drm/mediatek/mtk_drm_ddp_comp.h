@@ -293,8 +293,7 @@ struct mtk_ddp_comp_funcs {
 			  struct cmdq_pkt *handle);
 	void (*first_cfg)(struct mtk_ddp_comp *comp,
 		       struct mtk_ddp_config *cfg, struct cmdq_pkt *handle);
-	void (*bypass)(struct mtk_ddp_comp *comp, int bypass,
-		struct cmdq_pkt *handle);
+	void (*bypass)(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle);
 	void (*config_trigger)(struct mtk_ddp_comp *comp,
 			       struct cmdq_pkt *handle,
 			       enum mtk_ddp_comp_trigger_flag trig_flag);
@@ -431,11 +430,11 @@ static inline void mtk_ddp_gamma_set(struct mtk_ddp_comp *comp,
 		comp->funcs->gamma_set(comp, state, handle);
 }
 
-static inline void mtk_ddp_comp_bypass(struct mtk_ddp_comp *comp, int bypass,
+static inline void mtk_ddp_comp_bypass(struct mtk_ddp_comp *comp,
 				       struct cmdq_pkt *handle)
 {
 	if (comp && comp->funcs && comp->funcs->bypass && !comp->blank_mode)
-		comp->funcs->bypass(comp, bypass, handle);
+		comp->funcs->bypass(comp, handle);
 }
 
 static inline void mtk_ddp_comp_first_cfg(struct mtk_ddp_comp *comp,
@@ -540,8 +539,6 @@ void mt6853_mtk_sodi_config(struct drm_device *drm, enum mtk_ddp_comp_id id,
 void mt6877_mtk_sodi_config(struct drm_device *drm, enum mtk_ddp_comp_id id,
 			    struct cmdq_pkt *handle, void *data);
 void mt6833_mtk_sodi_config(struct drm_device *drm, enum mtk_ddp_comp_id id,
-			    struct cmdq_pkt *handle, void *data);
-void mt6781_mtk_sodi_config(struct drm_device *drm, enum mtk_ddp_comp_id id,
 			    struct cmdq_pkt *handle, void *data);
 
 

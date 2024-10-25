@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -32,9 +33,9 @@
  * some feature options should be disabled in bringup stage,
  * in bringup stage this #define should open.
  */
-//#if defined(CONFIG_MACH_MT6781)
-//#define MTK_DRM_BRINGUP_STAGE
-//#endif
+#if defined(CONFIG_MACH_MT6877)
+#define MTK_DRM_BRINGUP_STAGE
+#endif
 
 #ifdef MTK_DRM_BRINGUP_STAGE
 #define DRM_BYPASS_PQ
@@ -51,23 +52,14 @@
 
 #if (defined(CONFIG_MACH_MT6885) || defined(CONFIG_MACH_MT6873)\
 	|| defined(CONFIG_MACH_MT6893) ||\
-	defined(CONFIG_MACH_MT6853) ||\
+	defined(CONFIG_MACH_MT6853) || defined(CONFIG_MACH_MT6877) || \
 	defined(CONFIG_MACH_MT6833)) &&\
 	defined(CONFIG_MTK_SEC_VIDEO_PATH_SUPPORT)
 #define MTK_DRM_DELAY_PRESENT_FENCE
 /* Delay present fence would cause config merge */
 #endif
 
-#if defined(CONFIG_MACH_MT6877) || defined(CONFIG_MACH_MT6781)
-/*
- * MTK_DRM_DELAY_PRESENT_FENCE can not be defined,
- * but SF present fence must be enabled in platform dts
- */
-#define MTK_DRM_DELAY_PRESENT_FENCE_SOF
-#endif
-
-#if defined(CONFIG_MACH_MT6893) || defined(CONFIG_MACH_MT6853)\
-	|| defined(CONFIG_MACH_MT6877)
+#if defined(CONFIG_MACH_MT6893)
 #define CONFIG_MTK_DYN_SWITCH_BY_CMD
 #endif
 
@@ -86,6 +78,14 @@ struct drm_property;
 struct regmap;
 struct mm_qos_request;
 struct pm_qos_request;
+
+/* BSP.LCM - 2020.12.08 start */
+struct fb_lcd_wp_para {
+	int white_point_x;
+	int white_point_y;
+	int white_point_l;
+};
+/* BSP.LCM - 2020.12.08 end */
 
 struct mtk_atomic_state {
 	struct drm_atomic_state base;
@@ -144,7 +144,6 @@ struct mtk_drm_private {
 	unsigned int num_sessions;
 	enum MTK_DRM_SESSION_MODE session_mode;
 	atomic_t crtc_present[MAX_CRTC];
-	atomic_t crtc_sf_present[MAX_CRTC];
 
 	struct device_node *mutex_node;
 	struct device *mutex_dev;
@@ -289,8 +288,6 @@ void drm_trigger_repaint(enum DRM_REPAINT_TYPE type,
 int mtk_drm_suspend_release_fence(struct device *dev);
 void mtk_drm_suspend_release_present_fence(struct device *dev,
 					   unsigned int index);
-void mtk_drm_suspend_release_sf_present_fence(struct device *dev,
-					      unsigned int index);
 void mtk_drm_top_clk_prepare_enable(struct drm_device *drm);
 void mtk_drm_top_clk_disable_unprepare(struct drm_device *drm);
 struct mtk_panel_params *mtk_drm_get_lcm_ext_params(struct drm_crtc *crtc);
@@ -304,7 +301,4 @@ int lcm_fps_ctx_reset(struct drm_crtc *crtc);
 int lcm_fps_ctx_update(unsigned long long cur_ns,
 		unsigned int crtc_id, unsigned int mode);
 int mtk_mipi_clk_change(struct drm_crtc *crtc, unsigned int data_rate);
-unsigned int mtk_set_module_irq(unsigned int module_id);
-extern void mtk_irq_rdma_underflow_aee_trigger(void);
-wait_queue_head_t *mtk_get_log_wq(void);
 #endif /* MTK_DRM_DRV_H */

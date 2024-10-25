@@ -100,7 +100,7 @@
 #define DISP_REG_RDMA_SHADOW_UPDATE 0x00b8
 #endif
 #if defined(CONFIG_MACH_MT6873) || defined(CONFIG_MACH_MT6853) \
-	|| defined(CONFIG_MACH_MT6877) || defined(CONFIG_MACH_MT6781)
+	|| defined(CONFIG_MACH_MT6877)
 #define DISP_REG_RDMA_SHADOW_UPDATE 0x00bc
 #define RDMA_BYPASS_SHADOW BIT(1)
 #define RDMA_READ_WORK_REG BIT(2)
@@ -217,22 +217,6 @@ enum GS_RDMA_FLD {
 	GS_RDMA_FLD_NUM,
 };
 
-static int mtk_irq_rdma_underflow;
-static unsigned int comp_id;
-static unsigned int underflow_counter;
-static struct mtk_ddp_comp *temp_rdma;
-
-void mtk_set_rdma(struct mtk_ddp_comp *rdma)
-{
-	if (rdma != NULL)
-		temp_rdma = rdma;
-}
-
-struct mtk_ddp_comp *mtk_get_rdma(void)
-{
-	return temp_rdma;
-}
-
 struct mtk_disp_rdma_data {
 	unsigned int fifo_size;
 	void (*sodi_config)(struct drm_device *drm, enum mtk_ddp_comp_id id,
@@ -275,52 +259,10 @@ static inline struct mtk_disp_rdma *comp_to_rdma(struct mtk_ddp_comp *comp)
 	return container_of(comp, struct mtk_disp_rdma, ddp_comp);
 }
 
-void mtk_irq_rdma_underflow_aee_trigger(void)
-{
-	static unsigned long long last_timer;
-	static unsigned int considerable_cnt;
-	struct mtk_ddp_comp *p_rdma = NULL;
-
-	if (mtk_irq_rdma_underflow) {
-		if (last_timer != 0) {
-			unsigned long long freq = (1000 * 1000000);
-
-			do_div(freq, sched_clock() - last_timer);
-			if (freq > 0)
-				considerable_cnt++;
-			else
-				considerable_cnt = 0;
-		} else {
-			p_rdma = mtk_get_rdma();
-			if (p_rdma->mtk_crtc) {
-				mtk_drm_crtc_analysis(&(p_rdma->mtk_crtc->base));
-				mtk_drm_crtc_dump(&(p_rdma->mtk_crtc->base));
-			}
-		}
-
-		if (considerable_cnt >= 20) {
-			DDPAEE("[IRQ] %s: underflow! cnt= %d\n",
-				mtk_dump_comp_str_id(comp_id), underflow_counter);
-			considerable_cnt = 0;
-		}
-
-		if (considerable_cnt == 1) {
-			p_rdma = mtk_get_rdma();
-			if (p_rdma->mtk_crtc) {
-				mtk_drm_crtc_analysis(&(p_rdma->mtk_crtc->base));
-				mtk_drm_crtc_dump(&(p_rdma->mtk_crtc->base));
-			}
-		}
-		last_timer = sched_clock();
-		mtk_irq_rdma_underflow = 0;
-	}
-}
-
 static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 {
 	struct mtk_disp_rdma *priv = dev_id;
 	struct mtk_ddp_comp *rdma = &priv->ddp_comp;
-	struct mtk_drm_crtc *mtk_crtc = rdma->mtk_crtc;
 	unsigned int val = 0;
 	unsigned int ret = 0;
 
@@ -371,20 +313,12 @@ static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 					   priv->ddp_comp.mtk_crtc->base.index,
 					   1);
 		}
-		if (!mtk_drm_is_idle(&(rdma->mtk_crtc->base)))
-			mtk_drm_refresh_tag_end(&priv->ddp_comp);
+		mtk_drm_refresh_tag_end(&priv->ddp_comp);
 	}
 
 	if (val & (1 << 1)) {
 		DDPIRQ("[IRQ] %s: frame start!\n", mtk_dump_comp_str(rdma));
-#ifdef MTK_DRM_DELAY_PRESENT_FENCE_SOF
-		if (mtk_crtc) {
-			atomic_set(&mtk_crtc->pf_event, 1);
-			wake_up_interruptible(&mtk_crtc->present_fence_wq);
-		}
-#endif
-		if (!mtk_drm_is_idle(&(rdma->mtk_crtc->base)))
-			mtk_drm_refresh_tag_start(&priv->ddp_comp);
+		mtk_drm_refresh_tag_start(&priv->ddp_comp);
 		MMPathTraceDRM(rdma);
 	}
 
@@ -402,14 +336,12 @@ static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 		       readl(DISP_REG_RDMA_IN_LINE_CNT + rdma->regs),
 		       readl(DISP_REG_RDMA_OUT_P_CNT + rdma->regs),
 		       readl(DISP_REG_RDMA_OUT_LINE_CNT + rdma->regs));
-//		mtk_rdma_analysis(rdma);
-//		mtk_rdma_dump(rdma);
-#if 0
+		mtk_rdma_analysis(rdma);
+		mtk_rdma_dump(rdma);
 		if (rdma->mtk_crtc) {
 			mtk_drm_crtc_analysis(&(rdma->mtk_crtc->base));
 			mtk_drm_crtc_dump(&(rdma->mtk_crtc->base));
 		}
-#endif
 
 		if (rdma->mtk_crtc) {
 			struct mtk_drm_private *drm_priv = NULL;
@@ -428,29 +360,9 @@ static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 		}
 
 		priv->underflow_cnt++;
-
-		mtk_set_rdma(rdma);
-		mtk_irq_rdma_underflow = 1;
-		mtk_set_module_irq(rdma->id);
-		wake_up_interruptible(mtk_get_log_wq());
 	}
-
 	if (val & (1 << 5)) {
 		DDPIRQ("[IRQ] %s: target line!\n", mtk_dump_comp_str(rdma));
-		if (mtk_crtc) {
-			struct mtk_drm_private *drm_priv = NULL;
-
-			if (mtk_crtc->base.dev)
-				drm_priv =
-					mtk_crtc->base.dev->dev_private;
-			if (drm_priv && mtk_drm_helper_get_opt(
-				drm_priv->helper_opt,
-				MTK_DRM_OPT_SF_PF) &&
-				!mtk_crtc_is_frame_trigger_mode(&mtk_crtc->base)) {
-				atomic_set(&mtk_crtc->sf_pf_event, 1);
-				wake_up_interruptible(&mtk_crtc->sf_present_fence_wq);
-			}
-		}
 		if (rdma->mtk_crtc && rdma->mtk_crtc->esd_ctx &&
 			(!(val & (1 << 2)))) {
 			atomic_set(&rdma->mtk_crtc->esd_ctx->target_time, 1);
@@ -550,19 +462,14 @@ void mtk_rdma_cal_golden_setting(struct mtk_ddp_comp *comp,
 	/* fixed variable */
 	unsigned int mmsys_clk = 208;
 	unsigned int FP = 1000;
-#if defined(CONFIG_MACH_MT6781)
-	unsigned int fifo_size = 3062;
-#else
 	unsigned int fifo_size = 2240;
-#endif
 #if defined(CONFIG_MACH_MT6885) || defined(CONFIG_MACH_MT6893)
 	unsigned int pre_ultra_low_us = 245, pre_ultra_high_us = 255;
 	unsigned int ultra_low_us = 230, ultra_high_us = 245;
 	unsigned int urgent_low_us = 113, urgent_high_us = 117;
 #endif
 #if defined(CONFIG_MACH_MT6873) || defined(CONFIG_MACH_MT6853) \
-	|| defined(CONFIG_MACH_MT6833) || defined(CONFIG_MACH_MT6877) \
-	|| defined(CONFIG_MACH_MT6781)
+	|| defined(CONFIG_MACH_MT6833) || defined(CONFIG_MACH_MT6877)
 	unsigned int pre_ultra_low_us = 250, pre_ultra_high_us = 260;
 	unsigned int ultra_low_us = 230, ultra_high_us = 250;
 	unsigned int urgent_low_us = 110, urgent_high_us = 120;
@@ -1165,7 +1072,7 @@ int mtk_rdma_dump(struct mtk_ddp_comp *comp)
 		DDPDUMP("(0x0b8)DISP_REG_RDMA_SHADOW_UPDATE=0x%x\n",
 			readl(DISP_REG_RDMA_SHADOW_UPDATE + baddr));
 #elif defined(CONFIG_MACH_MT6873) || defined(CONFIG_MACH_MT6853) \
-	|| defined(CONFIG_MACH_MT6877) || defined(CONFIG_MACH_MT6781)
+	|| defined(CONFIG_MACH_MT6877)
 		DDPDUMP("(0x0bc)DISP_REG_RDMA_SHADOW_UPDATE=0x%x\n",
 			readl(DISP_REG_RDMA_SHADOW_UPDATE + baddr));
 #endif
@@ -1216,18 +1123,18 @@ int mtk_rdma_analysis(struct mtk_ddp_comp *comp)
 	unsigned int fifo = readl(baddr + DISP_REG_RDMA_FIFO_CON);
 
 	global_ctrl = readl(DISP_REG_RDMA_GLOBAL_CON + baddr);
-	DDPMSG("== %s ANALYSIS ==\n", mtk_dump_comp_str(comp));
-	DDPMSG("en=%d,mode:%s,smi_busy:%d\n",
+	DDPDUMP("== %s ANALYSIS ==\n", mtk_dump_comp_str(comp));
+	DDPDUMP("en=%d,mode:%s,smi_busy:%d\n",
 		REG_FLD_VAL_GET(GLOBAL_CON_FLD_ENGINE_EN, global_ctrl),
 		REG_FLD_VAL_GET(GLOBAL_CON_FLD_MODE_SEL, global_ctrl)
 				? "mem" : "DL",
 		REG_FLD_VAL_GET(GLOBAL_CON_FLD_SMI_BUSY, global_ctrl));
-	DDPMSG("wh(%dx%d),pitch=%d,addr=0x%08x\n",
+	DDPDUMP("wh(%dx%d),pitch=%d,addr=0x%08x\n",
 		readl(DISP_REG_RDMA_SIZE_CON_0 + baddr) & 0xfff,
 		readl(DISP_REG_RDMA_SIZE_CON_1 + baddr) & 0xfffff,
 		readl(DISP_REG_RDMA_MEM_SRC_PITCH + baddr),
 		readl(DISP_REG_RDMA_MEM_START_ADDR + baddr));
-	DDPMSG("fifo_sz=%u,output_valid_threshold=%u,fifo_min=%d\n",
+	DDPDUMP("fifo_sz=%u,output_valid_threshold=%u,fifo_min=%d\n",
 #if 0 /* TODO */
 		unified_color_fmt_name(display_fmt_reg_to_unified_fmt(
 				(readl(DISP_REG_RDMA_MEM_CON +
@@ -1238,7 +1145,7 @@ int mtk_rdma_analysis(struct mtk_ddp_comp *comp)
 		REG_FLD_VAL_GET(FIFO_CON_FLD_FIFO_PSEUDO_SIZE, fifo),
 		REG_FLD_VAL_GET(FIFO_CON_FLD_OUTPUT_VALID_FIFO_THRESHOLD, fifo),
 		readl(DISP_REG_RDMA_FIFO_LOG + baddr));
-	DDPMSG("pos:in(%d,%d)out(%d,%d),bg(t%d,b%d,l%d,r%d)\n",
+	DDPDUMP("pos:in(%d,%d)out(%d,%d),bg(t%d,b%d,l%d,r%d)\n",
 		readl(DISP_REG_RDMA_IN_P_CNT + baddr),
 		readl(DISP_REG_RDMA_IN_LINE_CNT + baddr),
 		readl(DISP_REG_RDMA_OUT_P_CNT + baddr),
@@ -1276,7 +1183,7 @@ static void mtk_rdma_prepare(struct mtk_ddp_comp *comp)
 	}
 #else
 #if defined(CONFIG_MACH_MT6873) || defined(CONFIG_MACH_MT6853) \
-	|| defined(CONFIG_MACH_MT6877) || defined(CONFIG_MACH_MT6781)
+	|| defined(CONFIG_MACH_MT6877)
 	/* Bypass shadow register and read shadow register */
 	mtk_ddp_write_mask_cpu(comp, RDMA_BYPASS_SHADOW,
 		DISP_REG_RDMA_SHADOW_UPDATE, RDMA_BYPASS_SHADOW);
@@ -1556,12 +1463,6 @@ static const struct mtk_disp_rdma_data mt6833_rdma_driver_data = {
 	.support_shadow = false,
 };
 
-static const struct mtk_disp_rdma_data mt6781_rdma_driver_data = {
-	.fifo_size = SZ_1K * 3 + SZ_32K,
-	.sodi_config = mt6781_mtk_sodi_config,
-	.support_shadow = false,
-};
-
 static const struct of_device_id mtk_disp_rdma_driver_dt_match[] = {
 	{.compatible = "mediatek,mt2701-disp-rdma",
 	 .data = &mt2701_rdma_driver_data},
@@ -1579,8 +1480,6 @@ static const struct of_device_id mtk_disp_rdma_driver_dt_match[] = {
 	 .data = &mt6877_rdma_driver_data},
 	{.compatible = "mediatek,mt6833-disp-rdma",
 	 .data = &mt6833_rdma_driver_data},
-	{.compatible = "mediatek,mt6781-disp-rdma",
-	 .data = &mt6781_rdma_driver_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, mtk_disp_rdma_driver_dt_match);

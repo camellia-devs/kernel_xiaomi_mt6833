@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -35,10 +36,14 @@
 #include "../mediatek/mtk_drm_graphics_base.h"
 #endif
 
+/* BSP.lcm - 2020.11.19  */
+extern int lcm_name[10];
+
 #ifdef CONFIG_MTK_ROUND_CORNER_SUPPORT
 #include "../mediatek/mtk_corner_pattern/mtk_data_hw_roundedpattern.h"
 #endif
-
+/*zhangyundan - 2020.11.04 - Add for adjust the TP on screen timing*/
+extern int32_t nvt_ts_tp_resume(void);
 struct lcm {
 	struct device *dev;
 	struct drm_panel panel;
@@ -225,535 +230,248 @@ static void lcm_panel_init(struct lcm *ctx)
 	udelay(10 * 1000);
 	devm_gpiod_put(ctx->dev, ctx->reset_gpio);
 
-	lcm_dcs_write_seq_static(ctx, 0xFF, 0x24);
-	lcm_dcs_write_seq_static(ctx, 0xFB, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xC5, 0x31);
+	lcm_dcs_write_seq_static(ctx, 0xFF, 0x10);
+	lcm_dcs_write_seq_static(ctx, 0xFB, 0X01);
+	lcm_dcs_write_seq_static(ctx, 0x3B, 0x03, 0x0A, 0x0A, 0x04, 0x04);
 
-	lcm_dcs_write_seq_static(ctx, 0xFF, 0x20);
-	lcm_dcs_write_seq_static(ctx, 0x00, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x01, 0x55);
-	lcm_dcs_write_seq_static(ctx, 0x02, 0x45);
-	lcm_dcs_write_seq_static(ctx, 0x03, 0x55);
-	lcm_dcs_write_seq_static(ctx, 0x05, 0x40);
-	lcm_dcs_write_seq_static(ctx, 0x06, 0x99);
+	lcm_dcs_write_seq_static(ctx, 0xFF, 0X20);
+	lcm_dcs_write_seq_static(ctx, 0xFB, 0X01);
+
+	lcm_dcs_write_seq_static(ctx, 0x0E, 0XAB);
+	lcm_dcs_write_seq_static(ctx, 0x0F, 0XA4);
+	lcm_dcs_write_seq_static(ctx, 0x06, 0xAE);
 	lcm_dcs_write_seq_static(ctx, 0x07, 0x9E);
-	lcm_dcs_write_seq_static(ctx, 0x08, 0x0C);
-	lcm_dcs_write_seq_static(ctx, 0x0B, 0x87);
-	lcm_dcs_write_seq_static(ctx, 0x0C, 0x87);
-	lcm_dcs_write_seq_static(ctx, 0x0E, 0xAB);
-	lcm_dcs_write_seq_static(ctx, 0x0F, 0xA9);
-	lcm_dcs_write_seq_static(ctx, 0x11, 0x0D);
-	lcm_dcs_write_seq_static(ctx, 0x12, 0x10);
-	lcm_dcs_write_seq_static(ctx, 0x13, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x14, 0x4A);
-	lcm_dcs_write_seq_static(ctx, 0x15, 0x12);
-	lcm_dcs_write_seq_static(ctx, 0x16, 0x12);
-	lcm_dcs_write_seq_static(ctx, 0x30, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x58, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x59, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x5A, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x5B, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x5C, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x5D, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x5E, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x5F, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x72, 0x31);
+	lcm_dcs_write_seq_static(ctx, 0x95, 0xAF);
+	lcm_dcs_write_seq_static(ctx, 0x96, 0xAF);
+	lcm_dcs_write_seq_static(ctx, 0x88, 0xFE);
+	lcm_dcs_write_seq_static(ctx, 0x89, 0x0C);
+	lcm_dcs_write_seq_static(ctx, 0x8A, 0x0C);
+
+	lcm_dcs_write_seq_static(ctx, 0x69, 0x99);
+	lcm_dcs_write_seq_static(ctx, 0x6D, 0x44);
+	lcm_dcs_write_seq_static(ctx, 0x62, 0xB2);
+	lcm_dcs_write_seq_static(ctx, 0x78, 0x01);
+
+	lcm_dcs_write_seq_static(ctx, 0xFF, 0x23);
 	lcm_dcs_write_seq_static(ctx, 0xFB, 0x01);
 
+	lcm_dcs_write_seq_static(ctx, 0x07, 0x20);
+	lcm_dcs_write_seq_static(ctx, 0x08, 0x04);
+	lcm_dcs_write_seq_static(ctx, 0x09, 0x00);
+
 	lcm_dcs_write_seq_static(ctx, 0xFF, 0x24);
-	lcm_dcs_write_seq_static(ctx, 0x00, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x01, 0x0B);
-	lcm_dcs_write_seq_static(ctx, 0x02, 0x0C);
-	lcm_dcs_write_seq_static(ctx, 0x03, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x04, 0x05);
+	lcm_dcs_write_seq_static(ctx, 0xFB, 0x01);
+
+	lcm_dcs_write_seq_static(ctx, 0x00, 0x1C);
+	lcm_dcs_write_seq_static(ctx, 0x01, 0x1C);
+	lcm_dcs_write_seq_static(ctx, 0x02, 0x1C);
+	lcm_dcs_write_seq_static(ctx, 0x03, 0x1C);
+	lcm_dcs_write_seq_static(ctx, 0x04, 0x1C);
 	lcm_dcs_write_seq_static(ctx, 0x05, 0x1C);
 	lcm_dcs_write_seq_static(ctx, 0x06, 0x10);
-	lcm_dcs_write_seq_static(ctx, 0x07, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x08, 0x1C);
-	lcm_dcs_write_seq_static(ctx, 0x09, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x0A, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x0B, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x0C, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x0D, 0x13);
+	lcm_dcs_write_seq_static(ctx, 0x07, 0x12);
+	lcm_dcs_write_seq_static(ctx, 0x08, 0x14);
+	lcm_dcs_write_seq_static(ctx, 0x09, 0x11);
 
-	lcm_dcs_write_seq_static(ctx, 0x0E, 0x15);
-	lcm_dcs_write_seq_static(ctx, 0x0F, 0x17);
-	lcm_dcs_write_seq_static(ctx, 0x10, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x11, 0x0B);
-	lcm_dcs_write_seq_static(ctx, 0x12, 0x0C);
-	lcm_dcs_write_seq_static(ctx, 0x13, 0x04);
-	lcm_dcs_write_seq_static(ctx, 0x14, 0x06);
+	lcm_dcs_write_seq_static(ctx, 0x0A, 0x13);
+	lcm_dcs_write_seq_static(ctx, 0x0B, 0x15);
+	lcm_dcs_write_seq_static(ctx, 0x0C, 0x20);
+	lcm_dcs_write_seq_static(ctx, 0x0D, 0x01);
+	lcm_dcs_write_seq_static(ctx, 0x0E, 0x0A);
+	lcm_dcs_write_seq_static(ctx, 0x0F, 0x09);
+	lcm_dcs_write_seq_static(ctx, 0x10, 0x0E);
+	lcm_dcs_write_seq_static(ctx, 0x11, 0x03);
+	lcm_dcs_write_seq_static(ctx, 0x12, 0x04);
+	lcm_dcs_write_seq_static(ctx, 0x13, 0x05);
+
+
+	lcm_dcs_write_seq_static(ctx, 0x14, 0x1C);
 	lcm_dcs_write_seq_static(ctx, 0x15, 0x1C);
-	lcm_dcs_write_seq_static(ctx, 0x16, 0x10);
-	lcm_dcs_write_seq_static(ctx, 0x17, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x16, 0x0D);
+	lcm_dcs_write_seq_static(ctx, 0x17, 0x1C);
 	lcm_dcs_write_seq_static(ctx, 0x18, 0x1C);
-	lcm_dcs_write_seq_static(ctx, 0x19, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x1A, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x1B, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x1C, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x1D, 0x13);
-	lcm_dcs_write_seq_static(ctx, 0x1E, 0x15);
-	lcm_dcs_write_seq_static(ctx, 0x1F, 0x17);
-	lcm_dcs_write_seq_static(ctx, 0x20, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x21, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x22, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x23, 0x4A);
-	lcm_dcs_write_seq_static(ctx, 0x24, 0x4A);
-	lcm_dcs_write_seq_static(ctx, 0x25, 0x6D);
-	lcm_dcs_write_seq_static(ctx, 0x26, 0x40);
-	lcm_dcs_write_seq_static(ctx, 0x27, 0x40);
-	lcm_dcs_write_seq_static(ctx, 0x32, 0x7B);
-	lcm_dcs_write_seq_static(ctx, 0x33, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x34, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x35, 0x8E);
-	lcm_dcs_write_seq_static(ctx, 0x39, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x3A, 0x8E);
+	lcm_dcs_write_seq_static(ctx, 0x19, 0x1C);
+	lcm_dcs_write_seq_static(ctx, 0x1A, 0x1C);
+	lcm_dcs_write_seq_static(ctx, 0x1B, 0x1C);
+	lcm_dcs_write_seq_static(ctx, 0x1C, 0x1C);
+	lcm_dcs_write_seq_static(ctx, 0x1D, 0x10);
 
-	lcm_dcs_write_seq_static(ctx, 0xBD, 0x20);
-	lcm_dcs_write_seq_static(ctx, 0xB6, 0x22);
-	lcm_dcs_write_seq_static(ctx, 0xB7, 0x24);
-	lcm_dcs_write_seq_static(ctx, 0xB8, 0x07);
-	lcm_dcs_write_seq_static(ctx, 0xB9, 0x07);
-	lcm_dcs_write_seq_static(ctx, 0xC1, 0x6D);
-	lcm_dcs_write_seq_static(ctx, 0xC2, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xC4, 0x24);
+	lcm_dcs_write_seq_static(ctx, 0x1E, 0x12);
+	lcm_dcs_write_seq_static(ctx, 0x1F, 0x14);
+	lcm_dcs_write_seq_static(ctx, 0x20, 0x11);
+	lcm_dcs_write_seq_static(ctx, 0x21, 0x13);
+	lcm_dcs_write_seq_static(ctx, 0x22, 0x15);
+	lcm_dcs_write_seq_static(ctx, 0x23, 0x20);
+	lcm_dcs_write_seq_static(ctx, 0x24, 0x01);
+	lcm_dcs_write_seq_static(ctx, 0x25, 0x0A);
+	lcm_dcs_write_seq_static(ctx, 0x26, 0x09);
+	lcm_dcs_write_seq_static(ctx, 0x27, 0x0E);
 
-	lcm_dcs_write_seq_static(ctx, 0xBE, 0x07);
-	lcm_dcs_write_seq_static(ctx, 0xBF, 0x07);
-	lcm_dcs_write_seq_static(ctx, 0x29, 0xD8);
-	lcm_dcs_write_seq_static(ctx, 0x2A, 0x2A);
-	lcm_dcs_write_seq_static(ctx, 0x5B, 0x43);
-	lcm_dcs_write_seq_static(ctx, 0x5C, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x5F, 0x73);
-	lcm_dcs_write_seq_static(ctx, 0x60, 0x73);
-	lcm_dcs_write_seq_static(ctx, 0x63, 0x22);
-	lcm_dcs_write_seq_static(ctx, 0x64, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x67, 0x08);
-	lcm_dcs_write_seq_static(ctx, 0x68, 0x04);
-	/* MUX */
-	lcm_dcs_write_seq_static(ctx, 0x7A, 0x80);
-	lcm_dcs_write_seq_static(ctx, 0x7B, 0x91);
-	lcm_dcs_write_seq_static(ctx, 0x7C, 0xD8);
-	lcm_dcs_write_seq_static(ctx, 0x7D, 0x60);
-	lcm_dcs_write_seq_static(ctx, 0x74, 0x09);
-	lcm_dcs_write_seq_static(ctx, 0x7E, 0x09);
-	lcm_dcs_write_seq_static(ctx, 0x75, 0x21);
-	lcm_dcs_write_seq_static(ctx, 0x7F, 0x21);
-	lcm_dcs_write_seq_static(ctx, 0x76, 0x05);
-	lcm_dcs_write_seq_static(ctx, 0x81, 0x05);
-	lcm_dcs_write_seq_static(ctx, 0x77, 0x04);
-	lcm_dcs_write_seq_static(ctx, 0x82, 0x04);
-	/* FP,BP */
-	lcm_dcs_write_seq_static(ctx, 0x93, 0x06);
-	lcm_dcs_write_seq_static(ctx, 0x94, 0x06);
-	lcm_dcs_write_seq_static(ctx, 0xB3, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xB4, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xB5, 0x00);
-	/* SOURCE EQ */
-	lcm_dcs_write_seq_static(ctx, 0x78, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x79, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x80, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x83, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x84, 0x04);
-	/* /Inversion Type// pixel column driving */
-	lcm_dcs_write_seq_static(ctx, 0x8A, 0x33);
-	lcm_dcs_write_seq_static(ctx, 0x8B, 0xF0);
-	lcm_dcs_write_seq_static(ctx, 0x9B, 0x0F);
-	lcm_dcs_write_seq_static(ctx, 0xC6, 0x09);
+	lcm_dcs_write_seq_static(ctx, 0x28, 0x03);
+	lcm_dcs_write_seq_static(ctx, 0x29, 0x04);
+	lcm_dcs_write_seq_static(ctx, 0x2A, 0x05);
+	lcm_dcs_write_seq_static(ctx, 0x2B, 0x1C);
+	lcm_dcs_write_seq_static(ctx, 0x2D, 0x1C);
+	lcm_dcs_write_seq_static(ctx, 0x2F, 0x0D);
+	lcm_dcs_write_seq_static(ctx, 0x31, 0x0C);
+	lcm_dcs_write_seq_static(ctx, 0x32, 0x0F);
+	lcm_dcs_write_seq_static(ctx, 0x34, 0x02);
+	lcm_dcs_write_seq_static(ctx, 0x35, 0x49);
+
+	lcm_dcs_write_seq_static(ctx, 0x37, 0x03);
+	lcm_dcs_write_seq_static(ctx, 0x38, 0x6C);
+	lcm_dcs_write_seq_static(ctx, 0x39, 0x6C);
+	lcm_dcs_write_seq_static(ctx, 0x3F, 0x6C);
+	lcm_dcs_write_seq_static(ctx, 0x41, 0x0C);
+	lcm_dcs_write_seq_static(ctx, 0x42, 0x0F);
+	lcm_dcs_write_seq_static(ctx, 0x4C, 0x1C);
+	lcm_dcs_write_seq_static(ctx, 0x6B, 0x27);
+	lcm_dcs_write_seq_static(ctx, 0x72, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x73, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x74, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x75, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x79, 0x04);
+	lcm_dcs_write_seq_static(ctx, 0x7C, 0x80);
+	lcm_dcs_write_seq_static(ctx, 0x7A, 0x03);
+	lcm_dcs_write_seq_static(ctx, 0x7B, 0x1A);
+
+	lcm_dcs_write_seq_static(ctx, 0x7D, 0x08);
+	lcm_dcs_write_seq_static(ctx, 0x80, 0x47);
+	lcm_dcs_write_seq_static(ctx, 0x81, 0x07);
+	lcm_dcs_write_seq_static(ctx, 0x82, 0x13);
+	lcm_dcs_write_seq_static(ctx, 0x83, 0x22);
+	lcm_dcs_write_seq_static(ctx, 0x84, 0x31);
+	lcm_dcs_write_seq_static(ctx, 0x85, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x86, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x87, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x88, 0x13);
+
+	lcm_dcs_write_seq_static(ctx, 0x89, 0x22);
+	lcm_dcs_write_seq_static(ctx, 0x8A, 0X31);
+	lcm_dcs_write_seq_static(ctx, 0x8B, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x8C, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x8D, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x8E, 0xF4);
+	lcm_dcs_write_seq_static(ctx, 0x8F, 0x01);
+	lcm_dcs_write_seq_static(ctx, 0x90, 0x80);
+	lcm_dcs_write_seq_static(ctx, 0x92, 0x76);
+	lcm_dcs_write_seq_static(ctx, 0xB3, 0x02);
+
+	lcm_dcs_write_seq_static(ctx, 0xB4, 0x04);
+	lcm_dcs_write_seq_static(ctx, 0xB5, 0x04);
+	lcm_dcs_write_seq_static(ctx, 0xDC, 0x04);
+	lcm_dcs_write_seq_static(ctx, 0xDD, 0x02);
+	lcm_dcs_write_seq_static(ctx, 0xDE, 0x10);
+	lcm_dcs_write_seq_static(ctx, 0xDF, 0x4C);
+	lcm_dcs_write_seq_static(ctx, 0xE0, 0x2A);
+	lcm_dcs_write_seq_static(ctx, 0xEB, 0x03);
+
+	lcm_dcs_write_seq_static(ctx, 0xFF, 0x25);
 	lcm_dcs_write_seq_static(ctx, 0xFB, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xEC, 0x00);
+
+	lcm_dcs_write_seq_static(ctx, 0x05, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x21, 0x1A);
+	lcm_dcs_write_seq_static(ctx, 0x22, 0x1A);
+	lcm_dcs_write_seq_static(ctx, 0x24, 0x76);
+	lcm_dcs_write_seq_static(ctx, 0x25, 0x76);
+	lcm_dcs_write_seq_static(ctx, 0x38, 0x30);
+	lcm_dcs_write_seq_static(ctx, 0x4B, 0x21);
+	lcm_dcs_write_seq_static(ctx, 0x4C, 0x58);
+	lcm_dcs_write_seq_static(ctx, 0x66, 0x58);
+	lcm_dcs_write_seq_static(ctx, 0x68, 0x50);
+
+	lcm_dcs_write_seq_static(ctx, 0x69, 0x60);
+	lcm_dcs_write_seq_static(ctx, 0x6B, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x71, 0x65);
+	lcm_dcs_write_seq_static(ctx, 0x77, 0x62);
+	lcm_dcs_write_seq_static(ctx, 0x7E, 0x25);
+	lcm_dcs_write_seq_static(ctx, 0x7F, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x81, 0x04);
+	lcm_dcs_write_seq_static(ctx, 0x84, 0x34);
+	lcm_dcs_write_seq_static(ctx, 0x85, 0x0D);
+	lcm_dcs_write_seq_static(ctx, 0x8D, 0x04);
+
+	lcm_dcs_write_seq_static(ctx, 0x8E, 0x10);
+	lcm_dcs_write_seq_static(ctx, 0xBF, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0xD9, 0x68);
+	lcm_dcs_write_seq_static(ctx, 0xDB, 0x32);
+
+	lcm_dcs_write_seq_static(ctx, 0xFF, 0x26);
+	lcm_dcs_write_seq_static(ctx, 0xFB, 0x01);
+
+	lcm_dcs_write_seq_static(ctx, 0x06, 0xFF);
+	lcm_dcs_write_seq_static(ctx, 0x0C, 0x11);
+	lcm_dcs_write_seq_static(ctx, 0x0F, 0x09);
+	lcm_dcs_write_seq_static(ctx, 0x10, 0x0A);
+	lcm_dcs_write_seq_static(ctx, 0x12, 0x82);
+	lcm_dcs_write_seq_static(ctx, 0x19, 0x0A);
+	lcm_dcs_write_seq_static(ctx, 0x1A, 0xC5);
+	lcm_dcs_write_seq_static(ctx, 0x1C, 0xAF);
+	lcm_dcs_write_seq_static(ctx, 0x1D, 0x0A);
+	lcm_dcs_write_seq_static(ctx, 0x1E, 0x48);
+	lcm_dcs_write_seq_static(ctx, 0x98, 0xF1);
+	lcm_dcs_write_seq_static(ctx, 0xA9, 0x11);
+	lcm_dcs_write_seq_static(ctx, 0xAA, 0x11);
+	lcm_dcs_write_seq_static(ctx, 0xAE, 0x8A);
+
+	lcm_dcs_write_seq_static(ctx, 0xFF, 0x27);
+	lcm_dcs_write_seq_static(ctx, 0xFB, 0x01);
+
+	lcm_dcs_write_seq_static(ctx, 0x13, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x1E, 0x14);
+	lcm_dcs_write_seq_static(ctx, 0x79, 0x08);
+
+	lcm_dcs_write_seq_static(ctx, 0xFF, 0xF0);
+	lcm_dcs_write_seq_static(ctx, 0xFB, 0x01);
+
+	lcm_dcs_write_seq_static(ctx, 0xA2, 0x00);
 
 	lcm_dcs_write_seq_static(ctx, 0xFF, 0x20);
 	lcm_dcs_write_seq_static(ctx, 0xFB, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x75, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x76, 0x49);
-	lcm_dcs_write_seq_static(ctx, 0x77, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x78, 0x78);
-	lcm_dcs_write_seq_static(ctx, 0x79, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x7A, 0xA4);
-	lcm_dcs_write_seq_static(ctx, 0x7B, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x7C, 0xC2);
-	lcm_dcs_write_seq_static(ctx, 0x7D, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x7E, 0xDA);
-	lcm_dcs_write_seq_static(ctx, 0x7F, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x80, 0xED);
-	lcm_dcs_write_seq_static(ctx, 0x81, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x82, 0xFE);
-	lcm_dcs_write_seq_static(ctx, 0x83, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x84, 0x0E);
-	lcm_dcs_write_seq_static(ctx, 0x85, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x86, 0x1B);
-	lcm_dcs_write_seq_static(ctx, 0x87, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x88, 0x48);
-	lcm_dcs_write_seq_static(ctx, 0x89, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x8A, 0x6C);
-	lcm_dcs_write_seq_static(ctx, 0x8B, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x8C, 0xA2);
-	lcm_dcs_write_seq_static(ctx, 0x8D, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x8E, 0xCD);
-	lcm_dcs_write_seq_static(ctx, 0x8F, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x90, 0x0F);
-	lcm_dcs_write_seq_static(ctx, 0x91, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x92, 0x42);
-	lcm_dcs_write_seq_static(ctx, 0x93, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x94, 0x43);
-	lcm_dcs_write_seq_static(ctx, 0x95, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x96, 0x71);
-	lcm_dcs_write_seq_static(ctx, 0x97, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x98, 0xA3);
-	lcm_dcs_write_seq_static(ctx, 0x99, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x9A, 0xC5);
-	lcm_dcs_write_seq_static(ctx, 0x9B, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x9C, 0xF3);
-	lcm_dcs_write_seq_static(ctx, 0x9D, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x9E, 0x12);
-	lcm_dcs_write_seq_static(ctx, 0x9F, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xA0, 0x3A);
-	lcm_dcs_write_seq_static(ctx, 0xA2, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xA3, 0x46);
-	lcm_dcs_write_seq_static(ctx, 0xA4, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xA5, 0x52);
-	lcm_dcs_write_seq_static(ctx, 0xA6, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xA7, 0x60);
-	lcm_dcs_write_seq_static(ctx, 0xA9, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xAA, 0x6E);
-	lcm_dcs_write_seq_static(ctx, 0xAB, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xAC, 0x7D);
-	lcm_dcs_write_seq_static(ctx, 0xAD, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xAE, 0x8B);
-	lcm_dcs_write_seq_static(ctx, 0xAF, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xB0, 0x91);
-	lcm_dcs_write_seq_static(ctx, 0xB1, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xB2, 0xCF);
-	/* RN GAMMA SETTING */
-	lcm_dcs_write_seq_static(ctx, 0xB3, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xB4, 0x49);
-	lcm_dcs_write_seq_static(ctx, 0xB5, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xB6, 0x78);
-	lcm_dcs_write_seq_static(ctx, 0xB7, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xB8, 0xA4);
-	lcm_dcs_write_seq_static(ctx, 0xB9, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xBA, 0xC2);
-	lcm_dcs_write_seq_static(ctx, 0xBB, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xBC, 0xDA);
-	lcm_dcs_write_seq_static(ctx, 0xBD, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xBE, 0xED);
-	lcm_dcs_write_seq_static(ctx, 0xBF, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xC0, 0xFE);
-	lcm_dcs_write_seq_static(ctx, 0xC1, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xC2, 0x0E);
-	lcm_dcs_write_seq_static(ctx, 0xC3, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xC4, 0x1B);
-	lcm_dcs_write_seq_static(ctx, 0xC5, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xC6, 0x48);
-	lcm_dcs_write_seq_static(ctx, 0xC7, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xC8, 0x6C);
-	lcm_dcs_write_seq_static(ctx, 0xC9, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xCA, 0xA2);
-	lcm_dcs_write_seq_static(ctx, 0xCB, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xCC, 0xCD);
-	lcm_dcs_write_seq_static(ctx, 0xCD, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xCE, 0x0F);
-	lcm_dcs_write_seq_static(ctx, 0xCF, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xD0, 0x42);
-	lcm_dcs_write_seq_static(ctx, 0xD1, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xD2, 0x43);
-	lcm_dcs_write_seq_static(ctx, 0xD3, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xD4, 0x71);
-	lcm_dcs_write_seq_static(ctx, 0xD5, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xD6, 0xA3);
-	lcm_dcs_write_seq_static(ctx, 0xD7, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xD8, 0xC5);
-	lcm_dcs_write_seq_static(ctx, 0xD9, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xDA, 0xF3);
-	lcm_dcs_write_seq_static(ctx, 0xDB, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xDC, 0x12);
-	lcm_dcs_write_seq_static(ctx, 0xDD, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xDE, 0x3A);
-	lcm_dcs_write_seq_static(ctx, 0xDF, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xE0, 0x46);
-	lcm_dcs_write_seq_static(ctx, 0xE1, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xE2, 0x52);
-	lcm_dcs_write_seq_static(ctx, 0xE3, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xE4, 0x60);
-	lcm_dcs_write_seq_static(ctx, 0xE5, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xE6, 0x6E);
-	lcm_dcs_write_seq_static(ctx, 0xE7, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xE8, 0x7D);
-	lcm_dcs_write_seq_static(ctx, 0xE9, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xEA, 0x8B);
-	lcm_dcs_write_seq_static(ctx, 0xEB, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xEC, 0x91);
-	lcm_dcs_write_seq_static(ctx, 0xED, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xEE, 0xCF);
-	/* GP GAMMA SETTING */
-	lcm_dcs_write_seq_static(ctx, 0xEF, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xF0, 0x49);
-	lcm_dcs_write_seq_static(ctx, 0xF1, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xF2, 0x78);
-	lcm_dcs_write_seq_static(ctx, 0xF3, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xF4, 0xA4);
-	lcm_dcs_write_seq_static(ctx, 0xF5, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xF6, 0xC2);
-	lcm_dcs_write_seq_static(ctx, 0xF7, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xF8, 0xDA);
-	lcm_dcs_write_seq_static(ctx, 0xF9, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xFA, 0xED);
-	/* CMD2 PAGE1 */
+
+	lcm_dcs_write_seq_static(ctx, 0xB0, 0x00, 0x1D, 0x00, 0x35, 0x00, 0x5C, 0x00, 0x7C, 0x00, 0x97, 0x00, 0xAE, 0x00, 0xC3, 0x00, 0xD5);
+	lcm_dcs_write_seq_static(ctx, 0xB1, 0x00, 0xE6, 0x01, 0x1E, 0x01, 0x46, 0x01, 0x86, 0x01, 0xB4, 0x01, 0xFD, 0x02, 0x34, 0x02, 0x35);
+	lcm_dcs_write_seq_static(ctx, 0xB2, 0x02, 0x6C, 0x02, 0xA9, 0x02, 0xD3, 0x03, 0x03, 0x03, 0x27, 0x03, 0x4E, 0x03, 0x5E, 0x03, 0x6C);
+	lcm_dcs_write_seq_static(ctx, 0xB3, 0x03, 0x7E, 0x03, 0x94, 0x03, 0xAF, 0x03, 0xC8, 0x03, 0xD2, 0x03, 0xD4, 0x00, 0x00);
+
+	lcm_dcs_write_seq_static(ctx, 0xB4, 0x00, 0x77, 0x00, 0x86, 0x00, 0xA0, 0x00, 0xB7, 0x00, 0xCB, 0x00, 0xDC, 0x00, 0xED, 0x00, 0xFB);
+	lcm_dcs_write_seq_static(ctx, 0xB5, 0x01, 0x09, 0x01, 0x37, 0x01, 0x5A, 0x01, 0x94, 0x01, 0xBE, 0x02, 0x03, 0x02, 0x39, 0x02, 0x3A);
+	lcm_dcs_write_seq_static(ctx, 0xB6, 0x02, 0x70, 0x02, 0xAC, 0x02, 0xD6, 0x03, 0x06, 0x03, 0x2A, 0x03, 0x51, 0x03, 0x61, 0x03, 0x6F);
+	lcm_dcs_write_seq_static(ctx, 0xB7, 0x03, 0x80, 0x03, 0x96, 0x03, 0x9F, 0x03, 0xC7, 0x03, 0xD2, 0x03, 0xD4, 0x00, 0x00);
+
+	lcm_dcs_write_seq_static(ctx, 0xB8, 0x00, 0x00, 0x00, 0x28, 0x00, 0x57, 0x00, 0x7B, 0x00, 0x98, 0x00, 0xB1, 0x00, 0xC7, 0x00, 0xDA);
+	lcm_dcs_write_seq_static(ctx, 0xB9, 0x00, 0xEB, 0x01, 0x24, 0x01, 0x4C, 0x01, 0x8C, 0x01, 0xB9, 0x02, 0x01, 0x02, 0x38, 0x02, 0x39);
+	lcm_dcs_write_seq_static(ctx, 0xBA, 0x02, 0x6F, 0x02, 0xAB, 0x02, 0xD5, 0x03, 0x06, 0x03, 0x2A, 0x03, 0x50, 0x03, 0x60, 0x03, 0x70);
+	lcm_dcs_write_seq_static(ctx, 0xBB, 0x03, 0x83, 0x03, 0x9B, 0x03, 0xB6, 0x03, 0xCA, 0x03, 0xD2, 0x03, 0xD4, 0x00, 0x00);
+
 	lcm_dcs_write_seq_static(ctx, 0xFF, 0x21);
 	lcm_dcs_write_seq_static(ctx, 0xFB, 0x01);
 
-	lcm_dcs_write_seq_static(ctx, 0x00, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x01, 0xFE);
-	lcm_dcs_write_seq_static(ctx, 0x02, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x03, 0x0E);
-	lcm_dcs_write_seq_static(ctx, 0x04, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x05, 0x1B);
-	lcm_dcs_write_seq_static(ctx, 0x06, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x07, 0x48);
-	lcm_dcs_write_seq_static(ctx, 0x08, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x09, 0x6C);
-	lcm_dcs_write_seq_static(ctx, 0x0A, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x0B, 0xA2);
-	lcm_dcs_write_seq_static(ctx, 0x0C, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x0D, 0xCD);
-	lcm_dcs_write_seq_static(ctx, 0x0E, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x0F, 0x0F);
-	lcm_dcs_write_seq_static(ctx, 0x10, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x11, 0x42);
-	lcm_dcs_write_seq_static(ctx, 0x12, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x13, 0x43);
-	lcm_dcs_write_seq_static(ctx, 0x14, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x15, 0x71);
-	lcm_dcs_write_seq_static(ctx, 0x16, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x17, 0xA3);
-	lcm_dcs_write_seq_static(ctx, 0x18, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x19, 0xC5);
-	lcm_dcs_write_seq_static(ctx, 0x1A, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x1B, 0xF3);
-	lcm_dcs_write_seq_static(ctx, 0x1C, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x1D, 0x12);
-	lcm_dcs_write_seq_static(ctx, 0x1E, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x1F, 0x3A);
-	lcm_dcs_write_seq_static(ctx, 0x20, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x21, 0x46);
-	lcm_dcs_write_seq_static(ctx, 0x22, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x23, 0x52);
-	lcm_dcs_write_seq_static(ctx, 0x24, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x25, 0x60);
-	lcm_dcs_write_seq_static(ctx, 0x26, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x27, 0x6E);
-	lcm_dcs_write_seq_static(ctx, 0x28, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x29, 0x7D);
-	lcm_dcs_write_seq_static(ctx, 0x2A, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x2B, 0x8B);
-	lcm_dcs_write_seq_static(ctx, 0x2D, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x2F, 0x91);
-	lcm_dcs_write_seq_static(ctx, 0x30, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x31, 0xCF);
-	lcm_dcs_write_seq_static(ctx, 0x32, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x33, 0x49);
-	lcm_dcs_write_seq_static(ctx, 0x34, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x35, 0x78);
-	lcm_dcs_write_seq_static(ctx, 0x36, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x37, 0xA4);
-	lcm_dcs_write_seq_static(ctx, 0x38, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x39, 0xC2);
-	lcm_dcs_write_seq_static(ctx, 0x3A, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x3B, 0xDA);
-	lcm_dcs_write_seq_static(ctx, 0x3D, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x3F, 0xED);
-	lcm_dcs_write_seq_static(ctx, 0x40, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x41, 0xFE);
-	lcm_dcs_write_seq_static(ctx, 0x42, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x43, 0x0E);
-	lcm_dcs_write_seq_static(ctx, 0x44, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x45, 0x1B);
-	lcm_dcs_write_seq_static(ctx, 0x46, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x47, 0x48);
-	lcm_dcs_write_seq_static(ctx, 0x48, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x49, 0x6C);
-	lcm_dcs_write_seq_static(ctx, 0x4A, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x4B, 0xA2);
-	lcm_dcs_write_seq_static(ctx, 0x4C, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x4D, 0xCD);
-	lcm_dcs_write_seq_static(ctx, 0x4E, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x4F, 0x0F);
-	lcm_dcs_write_seq_static(ctx, 0x50, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x51, 0x42);
-	lcm_dcs_write_seq_static(ctx, 0x52, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x53, 0x43);
-	lcm_dcs_write_seq_static(ctx, 0x54, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x55, 0x71);
-	lcm_dcs_write_seq_static(ctx, 0x56, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x58, 0xA3);
-	lcm_dcs_write_seq_static(ctx, 0x59, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x5A, 0xC5);
-	lcm_dcs_write_seq_static(ctx, 0x5B, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x5C, 0xF3);
-	lcm_dcs_write_seq_static(ctx, 0x5D, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x5E, 0x12);
-	lcm_dcs_write_seq_static(ctx, 0x5F, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x60, 0x3A);
-	lcm_dcs_write_seq_static(ctx, 0x61, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x62, 0x46);
-	lcm_dcs_write_seq_static(ctx, 0x63, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x64, 0x52);
-	lcm_dcs_write_seq_static(ctx, 0x65, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x66, 0x60);
-	lcm_dcs_write_seq_static(ctx, 0x67, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x68, 0x6E);
-	lcm_dcs_write_seq_static(ctx, 0x69, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x6A, 0x7D);
-	lcm_dcs_write_seq_static(ctx, 0x6B, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x6C, 0x8B);
-	lcm_dcs_write_seq_static(ctx, 0x6D, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x6E, 0x91);
-	lcm_dcs_write_seq_static(ctx, 0x6F, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x70, 0xCF);
-	lcm_dcs_write_seq_static(ctx, 0x71, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x72, 0x49);
-	lcm_dcs_write_seq_static(ctx, 0x73, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x74, 0x78);
-	lcm_dcs_write_seq_static(ctx, 0x75, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x76, 0xA4);
-	lcm_dcs_write_seq_static(ctx, 0x77, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x78, 0xC2);
-	lcm_dcs_write_seq_static(ctx, 0x79, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x7A, 0xDA);
-	lcm_dcs_write_seq_static(ctx, 0x7B, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x7C, 0xED);
-	lcm_dcs_write_seq_static(ctx, 0x7D, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x7E, 0xFE);
-	lcm_dcs_write_seq_static(ctx, 0x7F, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x80, 0x0E);
-	lcm_dcs_write_seq_static(ctx, 0x81, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x82, 0x1B);
-	lcm_dcs_write_seq_static(ctx, 0x83, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x84, 0x48);
-	lcm_dcs_write_seq_static(ctx, 0x85, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x86, 0x6C);
-	lcm_dcs_write_seq_static(ctx, 0x87, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x88, 0xA2);
-	lcm_dcs_write_seq_static(ctx, 0x89, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0x8A, 0xCD);
-	lcm_dcs_write_seq_static(ctx, 0x8B, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x8C, 0x0F);
-	lcm_dcs_write_seq_static(ctx, 0x8D, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x8E, 0x42);
-	lcm_dcs_write_seq_static(ctx, 0x8F, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x90, 0x43);
-	lcm_dcs_write_seq_static(ctx, 0x91, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x92, 0x71);
-	lcm_dcs_write_seq_static(ctx, 0x93, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x94, 0xA3);
-	lcm_dcs_write_seq_static(ctx, 0x95, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x96, 0xC5);
-	lcm_dcs_write_seq_static(ctx, 0x97, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0x98, 0xF3);
-	lcm_dcs_write_seq_static(ctx, 0x99, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x9A, 0x12);
-	lcm_dcs_write_seq_static(ctx, 0x9B, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x9C, 0x3A);
-	lcm_dcs_write_seq_static(ctx, 0x9D, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0x9E, 0x46);
-	lcm_dcs_write_seq_static(ctx, 0x9F, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xA0, 0x52);
-	lcm_dcs_write_seq_static(ctx, 0xA2, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xA3, 0x60);
-	lcm_dcs_write_seq_static(ctx, 0xA4, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xA5, 0x6E);
-	lcm_dcs_write_seq_static(ctx, 0xA6, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xA7, 0x7D);
-	lcm_dcs_write_seq_static(ctx, 0xA9, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xAA, 0x8B);
-	lcm_dcs_write_seq_static(ctx, 0xAB, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xAC, 0x91);
-	lcm_dcs_write_seq_static(ctx, 0xAD, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xAE, 0xCF);
-	lcm_dcs_write_seq_static(ctx, 0xAF, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xB0, 0x49);
-	lcm_dcs_write_seq_static(ctx, 0xB1, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xB2, 0x78);
-	lcm_dcs_write_seq_static(ctx, 0xB3, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xB4, 0xA4);
-	lcm_dcs_write_seq_static(ctx, 0xB5, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xB6, 0xC2);
-	lcm_dcs_write_seq_static(ctx, 0xB7, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xB8, 0xDA);
-	lcm_dcs_write_seq_static(ctx, 0xB9, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xBA, 0xED);
-	lcm_dcs_write_seq_static(ctx, 0xBB, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xBC, 0xFE);
-	lcm_dcs_write_seq_static(ctx, 0xBD, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xBE, 0x0E);
-	lcm_dcs_write_seq_static(ctx, 0xBF, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xC0, 0x1B);
-	lcm_dcs_write_seq_static(ctx, 0xC1, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xC2, 0x48);
-	lcm_dcs_write_seq_static(ctx, 0xC3, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xC4, 0x6C);
-	lcm_dcs_write_seq_static(ctx, 0xC5, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xC6, 0xA2);
-	lcm_dcs_write_seq_static(ctx, 0xC7, 0x01);
-	lcm_dcs_write_seq_static(ctx, 0xC8, 0xCD);
-	lcm_dcs_write_seq_static(ctx, 0xC9, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xCA, 0x0F);
-	lcm_dcs_write_seq_static(ctx, 0xCB, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xCC, 0x42);
-	lcm_dcs_write_seq_static(ctx, 0xCD, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xCE, 0x43);
-	lcm_dcs_write_seq_static(ctx, 0xCF, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xD0, 0x71);
-	lcm_dcs_write_seq_static(ctx, 0xD1, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xD2, 0xA3);
-	lcm_dcs_write_seq_static(ctx, 0xD3, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xD4, 0xC5);
-	lcm_dcs_write_seq_static(ctx, 0xD5, 0x02);
-	lcm_dcs_write_seq_static(ctx, 0xD6, 0xF3);
-	lcm_dcs_write_seq_static(ctx, 0xD7, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xD8, 0x12);
-	lcm_dcs_write_seq_static(ctx, 0xD9, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xDA, 0x3A);
-	lcm_dcs_write_seq_static(ctx, 0xDB, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xDC, 0x46);
-	lcm_dcs_write_seq_static(ctx, 0xDD, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xDE, 0x52);
-	lcm_dcs_write_seq_static(ctx, 0xDF, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xE0, 0x60);
-	lcm_dcs_write_seq_static(ctx, 0xE1, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xE2, 0x6E);
-	lcm_dcs_write_seq_static(ctx, 0xE3, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xE4, 0x7D);
-	lcm_dcs_write_seq_static(ctx, 0xE5, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xE6, 0x8B);
-	lcm_dcs_write_seq_static(ctx, 0xE7, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xE8, 0x91);
-	lcm_dcs_write_seq_static(ctx, 0xE9, 0x03);
-	lcm_dcs_write_seq_static(ctx, 0xEA, 0xCF);
-	/* Return  To CMD1 */
+	lcm_dcs_write_seq_static(ctx, 0xB0, 0x00, 0x15, 0x00, 0x2D, 0x00, 0x54, 0x00, 0x74, 0x00, 0x8F, 0x00, 0xA6, 0x00, 0xBB, 0x00, 0xCD);
+	lcm_dcs_write_seq_static(ctx, 0xB1, 0x00, 0xDE, 0x01, 0x16, 0x01, 0x3E, 0x01, 0x7E, 0x01, 0xAC, 0x01, 0xF5, 0x02, 0x2C, 0x02, 0x2D);
+	lcm_dcs_write_seq_static(ctx, 0xB2, 0x02, 0x64, 0x02, 0xA1, 0x02, 0xCB, 0x02, 0xFB, 0x03, 0x1F, 0x03, 0x46, 0x03, 0x56, 0x03, 0x64);
+	lcm_dcs_write_seq_static(ctx, 0xB3, 0x03, 0x76, 0x03, 0x8C, 0x03, 0xA7, 0x03, 0xC0, 0x03, 0xD2, 0x03, 0xD4, 0x00, 0x00);
+
+	lcm_dcs_write_seq_static(ctx, 0xB4, 0x00, 0x6F, 0x00, 0x7E, 0x00, 0x98, 0x00, 0xAF, 0x00, 0xC3, 0x00, 0xD4, 0x00, 0xE5, 0x00, 0xF3);
+	lcm_dcs_write_seq_static(ctx, 0xB5, 0x01, 0x01, 0x01, 0x2F, 0x01, 0x52, 0x01, 0x8C, 0x01, 0xB6, 0x01, 0xFB, 0x02, 0x31, 0x02, 0x32);
+	lcm_dcs_write_seq_static(ctx, 0xB6, 0x02, 0x68, 0x02, 0xA4, 0x02, 0xCE, 0x02, 0xFE, 0x03, 0x22, 0x03, 0x49, 0x03, 0x59, 0x03, 0x67);
+	lcm_dcs_write_seq_static(ctx, 0xB7, 0x03, 0x78, 0x03, 0x8E, 0x03, 0x97, 0x03, 0xBF, 0x03, 0xD2, 0x03, 0xD4, 0x00, 0x00);
+
+	lcm_dcs_write_seq_static(ctx, 0xB8, 0x00, 0x00, 0x00, 0x20, 0x00, 0x4F, 0x00, 0x73, 0x00, 0x90, 0x00, 0xA9, 0x00, 0xBF, 0x00, 0xD2);
+	lcm_dcs_write_seq_static(ctx, 0xB9, 0x00, 0xE3, 0x01, 0x1C, 0x01, 0x44, 0x01, 0x84, 0x01, 0xB1, 0x01, 0xF9, 0x02, 0x30, 0x02, 0x31);
+	lcm_dcs_write_seq_static(ctx, 0xBA, 0x02, 0x67, 0x02, 0xA3, 0x02, 0xCD, 0x02, 0xFE, 0x03, 0x22, 0x03, 0x48, 0x03, 0x58, 0x03, 0x68);
+	lcm_dcs_write_seq_static(ctx, 0xBB, 0x03, 0x7B, 0x03, 0x93, 0x03, 0xAE, 0x03, 0xC2, 0x03, 0xD2, 0x03, 0xD4, 0x00, 0x00);
+
+	/******gamma******/
 	lcm_dcs_write_seq_static(ctx, 0xFF, 0x10);
 	lcm_dcs_write_seq_static(ctx, 0x35, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x3B, 0x03, 0x0a, 0x0a);
-	/* set TE event @ line 0x778(1912) for partial update */
-	lcm_dcs_write_seq_static(ctx, 0x44, 0x07, 0x78);
-
-	/* ///////////////////CABC SETTING///////// */
-	lcm_dcs_write_seq_static(ctx, 0x51, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0x5E, 0x00);
+	lcm_dcs_write_seq_static(ctx, 0x51, 0xFF);
 	lcm_dcs_write_seq_static(ctx, 0x53, 0x24);
 	lcm_dcs_write_seq_static(ctx, 0x55, 0x00);
-	lcm_dcs_write_seq_static(ctx, 0xFB, 0x01);
-	/* set partial update option */
-	lcm_dcs_write_seq_static(ctx, 0xC9, 0x49, 0x02, 0x05, 0x00, 0x0F,
-		0x06, 0x67, 0x03, 0x2E, 0x10, 0xF0);
-	lcm_dcs_write_seq_static(ctx, 0xBB, 0x03);
-
 	lcm_dcs_write_seq_static(ctx, 0x11);
-	msleep(200);
+	msleep(120);
 	lcm_dcs_write_seq_static(ctx, 0x29);
-
-	msleep(100);
+	msleep(20);
 }
 
 static int lcm_disable(struct drm_panel *panel)
@@ -834,6 +552,7 @@ static int lcm_prepare(struct drm_panel *panel)
 	int ret;
 
 	pr_info("%s\n", __func__);
+	pr_err("panel-nt35695-vdo prepare\n");
 	if (ctx->prepared)
 		return 0;
 
@@ -877,7 +596,8 @@ static int lcm_prepare(struct drm_panel *panel)
 #ifdef PANEL_SUPPORT_READBACK
 	lcm_panel_get_data(ctx);
 #endif
-
+/*zhangyundan - 2020.11.04 - Add for adjust the TP on screen timing*/
+	nvt_ts_tp_resume();
 	return ret;
 }
 
@@ -898,28 +618,28 @@ static int lcm_enable(struct drm_panel *panel)
 	return 0;
 }
 
-#define HFP (50)
-#define HSA (10)
-#define HBP (20)
-#define VFP (70)
+#define HFP (24)
+#define HSA (8)
+#define HBP (24)
+#define VFP (10)
 #define VSA (2)
 #define VBP (8)
-#define VAC (1920)
+#define VAC (2340)
 #define HAC (1080)
-static u32 fake_heigh = 1920;
+static u32 fake_heigh = 2340;
 static u32 fake_width = 1080;
 static bool need_fake_resolution;
 
 static struct drm_display_mode default_mode = {
-	.clock = 138345,
+	.clock = 160857,			// htotal*vtotal*fresh/1000
 	.hdisplay = HAC,
 	.hsync_start = HAC + HFP,
 	.hsync_end = HAC + HFP + HSA,
-	.htotal = HAC + HFP + HSA + HBP,
+	.htotal = HAC + HFP + HSA + HBP,	//1136
 	.vdisplay = VAC,
 	.vsync_start = VAC + VFP,
 	.vsync_end = VAC + VFP + VSA,
-	.vtotal = VAC + VFP + VSA + VBP,
+	.vtotal = VAC + VFP + VSA + VBP,	//2360
 	.vrefresh = 60,
 };
 
@@ -995,7 +715,7 @@ static int lcm_get_virtual_width(void)
 
 static struct mtk_panel_params ext_params = {
 	.pll_clk = 443,
-	.vfp_low_power = 743,
+	.vfp_low_power = 0,
 	.cust_esd_check = 0,
 	.esd_check_enable = 1,
 	.lcm_esd_check_table[0] = {
@@ -1113,6 +833,16 @@ static int lcm_probe(struct mipi_dsi_device *dsi)
 	int ret;
 	struct device_node *dsi_node, *remote_node = NULL, *endpoint = NULL;
 
+	/* BSP.lcm - 2020.11.19 - start */
+	pr_info("[LCM][KERNEL]nt36672A probe!!!\n");
+	if (strstr(saved_command_line, "nt36672A_fhdp_dsi_vdo_tianma_j19_lcm_drv")) {
+		pr_err("nt36672a probe match");
+	} else {
+		pr_err("not match nt36672a !!!\n");
+		return -ENODEV;
+	}
+	/* BSP.lcm - 2020.11.19 - end */
+
 	dsi_node = of_get_parent(dev->of_node);
 	if (dsi_node) {
 		endpoint = of_graph_get_next_endpoint(dsi_node, NULL);
@@ -1213,10 +943,12 @@ static int lcm_remove(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
+/* BSP.lcm - 2020.11.19 - start */
 static const struct of_device_id lcm_of_match[] = {
-	{ .compatible = "nt35695b,auo,vdo", },
+	{ .compatible = "nt36672a,tianma0,vdo", },
 	{ }
 };
+/* BSP.lcm - 2020.11.19 - end */
 
 MODULE_DEVICE_TABLE(of, lcm_of_match);
 

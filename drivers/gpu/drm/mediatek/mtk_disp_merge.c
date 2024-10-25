@@ -172,10 +172,6 @@ int mtk_merge_analysis(struct mtk_ddp_comp *comp)
 		     REG_FLD_VAL_GET(FLD_PIXEL_CNT, dbg0),
 		     REG_FLD_VAL_GET(FLD_MERGE_STATE, dbg0),
 		     REG_FLD_VAL_GET(FLD_LINE_CNT, dbg1));
-
-	if (n < 0 || n > len)
-		DDPPR_ERR("error to get string msg\n");
-
 	DDPDUMP("%s", msg);
 
 	return 0;

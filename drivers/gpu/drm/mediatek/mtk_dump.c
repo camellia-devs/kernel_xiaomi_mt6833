@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2019 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -135,6 +136,7 @@ int mtk_dump_analysis(struct mtk_ddp_comp *comp)
 		break;
 	case DDP_COMPONENT_DSI0:
 	case DDP_COMPONENT_DSI1:
+		printk("zhao:mtk_dsi_analysis\n");
 		mtk_dsi_analysis(comp);
 		break;
 #ifdef CONFIG_MTK_HDMI_SUPPORT
@@ -176,7 +178,7 @@ void mtk_serial_dump_reg(void __iomem *base, unsigned int offset,
 		l += s;
 	}
 
-	DDPMSG("%s\n", buf);
+	DDPDUMP("%s\n", buf);
 }
 
 void mtk_cust_dump_reg(void __iomem *base, int off1, int off2, int off3,

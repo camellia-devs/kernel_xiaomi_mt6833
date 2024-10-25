@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2019 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -25,9 +26,6 @@
 #include <uapi/linux/sched/types.h>
 #include <drm/drmP.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
-#if defined(CONFIG_MACH_MT6877)
-#include <linux/pinctrl/consumer.h>
-#endif
 
 #include "mtk_drm_drv.h"
 #include "mtk_drm_ddp_comp.h"
@@ -39,7 +37,7 @@
 #include "mtk_drm_trace.h"
 
 #define ESD_TRY_CNT 5
-#define ESD_CHECK_PERIOD 2000 /* ms */
+#define ESD_CHECK_PERIOD 4000 /* ms */
 
 /* pinctrl implementation */
 long _set_state(struct drm_crtc *crtc, const char *name)
@@ -342,10 +340,7 @@ static int mtk_drm_request_eint(struct drm_crtc *crtc)
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32_array(node, "debounce", ints, ARRAY_SIZE(ints));
-	if (ret)
-		DDPPR_ERR("debounce not found\n");
-
+	of_property_read_u32_array(node, "debounce", ints, ARRAY_SIZE(ints));
 	esd_ctx->eint_irq = irq_of_parse_and_map(node, 0);
 
 	ret = request_irq(esd_ctx->eint_irq, _esd_check_ext_te_irq_handler,
@@ -475,10 +470,10 @@ static int mtk_drm_esd_check_worker_kthread(void *data)
 {
 	struct sched_param param = {.sched_priority = 87};
 	struct drm_crtc *crtc = (struct drm_crtc *)data;
-	struct mtk_drm_private *private = NULL;
-	struct mtk_drm_crtc *mtk_crtc = NULL;
-	struct mtk_drm_esd_ctx *esd_ctx = NULL;
-	struct mtk_panel_ext *panel_ext = NULL;
+	struct mtk_drm_private *private = crtc->dev->dev_private;
+	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
+	struct mtk_drm_esd_ctx *esd_ctx = mtk_crtc->esd_ctx;
+	struct mtk_panel_ext *panel_ext = mtk_crtc->panel_ext;
 	int ret = 0;
 	int i = 0;
 	int recovery_flg = 0;
@@ -489,10 +484,6 @@ static int mtk_drm_esd_check_worker_kthread(void *data)
 		DDPPR_ERR("%s invalid CRTC context, stop thread\n", __func__);
 		return -EINVAL;
 	}
-	private = crtc->dev->dev_private;
-	mtk_crtc = to_mtk_crtc(crtc);
-	esd_ctx = mtk_crtc->esd_ctx;
-	panel_ext = mtk_crtc->panel_ext;
 
 	if (unlikely(!(panel_ext && panel_ext->params))) {
 		DDPPR_ERR("%s invalid  panel_ext handle\n", __func__);

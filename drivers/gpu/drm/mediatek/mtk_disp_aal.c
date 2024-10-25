@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2019 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -26,28 +27,27 @@
 //For 120Hz rotation issue
 #include <linux/time.h>
 
-#ifdef CONFIG_MTK_LEDS
-#include <mtk_leds_drv.h>
+//workaround for fix led related build error
+#if defined(CONFIG_MACH_MT6877)
+#define mt_leds_brightness_set(x, y) do { } while (0)
+#define MT65XX_LED_MODE_NONE (0)
+#define MT65XX_LED_MODE_CUST_LCM (4)
+#else
+
 #ifdef CONFIG_LEDS_MTK_DISP
-#ifdef CONFIG_MTK_AAL_SUPPORT
 #define CONFIG_LEDS_BRIGHTNESS_CHANGED
-#endif
+#include <mtk_leds_drv.h>
 #include <leds-mtk-disp.h>
 #elif defined CONFIG_LEDS_MTK_PWM
-#ifdef CONFIG_MTK_AAL_SUPPORT
 #define CONFIG_LEDS_BRIGHTNESS_CHANGED
-#endif
+#include <mtk_leds_drv.h>
 #include <leds-mtk-pwm.h>
-#elif defined CONFIG_LEDS_MTK_I2C
-#ifdef CONFIG_MTK_AAL_SUPPORT
-#define CONFIG_LEDS_BRIGHTNESS_CHANGED
-#endif
-#include <leds-mtk-i2c.h>
-#endif
 #else
 #define mt_leds_brightness_set(x, y) do { } while (0)
 #define MT65XX_LED_MODE_NONE (0)
 #define MT65XX_LED_MODE_CUST_LCM (4)
+#endif
+
 #endif
 
 #include "mtk_drm_crtc.h"
@@ -149,8 +149,7 @@ enum AAL_IOCTL_CMD {
 	INIT_REG = 0,
 	SET_PARAM,
 	EVENTCTL,
-	FLIP_SRAM,
-	BYPASS_AAL
+	FLIP_SRAM
 };
 
 struct dre3_node {
@@ -440,7 +439,9 @@ void disp_aal_notify_backlight_changed(int bl_1024)
 
 	// FIXME
 	//max_backlight = disp_pwm_get_max_backlight(DISP_PWM0);
-	max_backlight = 2048;
+	/* BSP.LCM - 2020.11.25 - modify to set brightness */
+	max_backlight = 2047;
+	/* end modify to set brightness */
 	if (bl_1024 > max_backlight)
 		bl_1024 = max_backlight;
 
@@ -465,8 +466,6 @@ void disp_aal_notify_backlight_changed(int bl_1024)
 	g_aal_hist.serviceFlags |= service_flags;
 	spin_unlock_irqrestore(&g_aal_hist_lock, flags);
 	// always notify aal service for LED changed
-	if (default_comp == NULL)
-		return;
 	mtk_drm_idlemgr_kick(__func__, &default_comp->mtk_crtc->base, 1);
 	disp_aal_refresh_by_kernel();
 }
@@ -1064,8 +1063,7 @@ static int disp_aal_write_dre_to_reg(struct mtk_ddp_comp *comp,
 	gain = param->DREGainFltStatus;
 #if defined(CONFIG_MACH_MT6885) || defined(CONFIG_MACH_MT6873) \
 	|| defined(CONFIG_MACH_MT6893) || defined(CONFIG_MACH_MT6853) \
-	|| defined(CONFIG_MACH_MT6833) || defined(CONFIG_MACH_MT6877) \
-	|| defined(CONFIG_MACH_MT6781)
+	|| defined(CONFIG_MACH_MT6833) || defined(CONFIG_MACH_MT6877)
 	cmdq_pkt_write(handle, comp->cmdq_base,
 		comp->regs_pa + DISP_AAL_DRE_FLT_FORCE(0),
 	    DRE_REG_2(gain[0], 0, gain[1], 14), ~0);
@@ -1325,6 +1323,38 @@ int mtk_drm_ioctl_aal_set_param(struct drm_device *dev, void *data,
 		delay_refresh = true;
 	mtk_crtc_check_trigger(comp->mtk_crtc, delay_refresh, true);
 	return ret;
+}
+
+static int mtk_aal_user_cmd(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle,
+	unsigned int cmd, void *data)
+{
+	AALFLOW_LOG("cmd: %d\n", cmd);
+	switch (cmd) {
+	case INIT_REG:
+		if (disp_aal_set_init_reg(comp, handle,
+			(struct DISP_AAL_INITREG *) data) < 0) {
+			AALERR("INIT_REG: fail\n");
+			return -EFAULT;
+		}
+		break;
+	case SET_PARAM:
+		if (disp_aal_set_param(comp, handle,
+			(struct DISP_AAL_PARAM *) data) < 0) {
+			AALERR("SET_PARAM: fail\n");
+			return -EFAULT;
+		}
+		break;
+	case EVENTCTL:
+		disp_aal_flip_sram(comp, handle, __func__);
+		break;
+	case FLIP_SRAM:
+		disp_aal_first_flip_sram(comp, handle, __func__);
+		break;
+	default:
+		AALERR("error cmd: %d\n", cmd);
+		return -EINVAL;
+	}
+	return 0;
 }
 
 static DEFINE_SPINLOCK(g_aal_get_irq_lock);
@@ -1871,56 +1901,15 @@ static void mtk_aal_stop(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle)
 	basic_cmdq_write(handle, comp, DISP_AAL_EN, 0x0, ~0);
 }
 
-static void mtk_aal_bypass(struct mtk_ddp_comp *comp, int bypass,
-	struct cmdq_pkt *handle)
+static void mtk_aal_bypass(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle)
 {
 #if 1
 	AALFLOW_LOG("\n");
 	cmdq_pkt_write(handle, comp->cmdq_base, comp->regs_pa + DISP_AAL_CFG,
-		bypass, 0x1);
-	atomic_set(&g_aal_force_relay, bypass);
+		0x1, 0x1);
 #else
 	AALFLOW_LOG("is ignored\n");
 #endif
-}
-
-static int mtk_aal_user_cmd(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle,
-	unsigned int cmd, void *data)
-{
-	AALFLOW_LOG("cmd: %d\n", cmd);
-	switch (cmd) {
-	case INIT_REG:
-		if (disp_aal_set_init_reg(comp, handle,
-			(struct DISP_AAL_INITREG *) data) < 0) {
-			AALERR("INIT_REG: fail\n");
-			return -EFAULT;
-		}
-		break;
-	case SET_PARAM:
-		if (disp_aal_set_param(comp, handle,
-			(struct DISP_AAL_PARAM *) data) < 0) {
-			AALERR("SET_PARAM: fail\n");
-			return -EFAULT;
-		}
-		break;
-	case EVENTCTL:
-		disp_aal_flip_sram(comp, handle, __func__);
-		break;
-	case FLIP_SRAM:
-		disp_aal_first_flip_sram(comp, handle, __func__);
-		break;
-	case BYPASS_AAL:
-	{
-		int *value = data;
-
-		mtk_aal_bypass(comp, *value, handle);
-	}
-		break;
-	default:
-		AALERR("error cmd: %d\n", cmd);
-		return -EINVAL;
-	}
-	return 0;
 }
 
 #define DRE_FLT_NUM	(12)
@@ -1946,7 +1935,6 @@ struct aal_backup { /* structure for backup AAL register value */
 	unsigned int DUAL_PIPE_INFO_00;
 	unsigned int DUAL_PIPE_INFO_01;
 #endif
-	unsigned int AAL_CFG;
 };
 static struct aal_backup g_aal_backup;
 
@@ -2011,18 +1999,12 @@ static void ddp_aal_cabc_backup(struct mtk_ddp_comp *comp)
 #endif	/* not define NOT_SUPPORT_CABC_HW */
 }
 
-static void ddp_aal_cfg_backup(struct mtk_ddp_comp *comp)
-{
-	g_aal_backup.AAL_CFG = readl(comp->regs + DISP_AAL_CFG);
-}
-
 static void ddp_aal_backup(struct mtk_ddp_comp *comp)
 {
 	AALFLOW_LOG("\n");
 	ddp_aal_cabc_backup(comp);
 	ddp_aal_dre_backup(comp);
 	ddp_aal_dre3_backup(comp);
-	ddp_aal_cfg_backup(comp);
 	atomic_set(&g_aal_initialed, 1);
 }
 
@@ -2094,11 +2076,6 @@ static void ddp_aal_cabc_restore(struct mtk_ddp_comp *comp)
 #endif	/* not define NOT_SUPPORT_CABC_HW */
 }
 
-static void ddp_aal_cfg_restore(struct mtk_ddp_comp *comp)
-{
-	writel(g_aal_backup.AAL_CFG, comp->regs + DISP_AAL_CFG);
-}
-
 static void ddp_aal_restore(struct mtk_ddp_comp *comp)
 {
 	if (atomic_read(&g_aal_initialed) != 1)
@@ -2108,7 +2085,6 @@ static void ddp_aal_restore(struct mtk_ddp_comp *comp)
 	ddp_aal_cabc_restore(comp);
 	ddp_aal_dre_restore(comp);
 	ddp_aal_dre3_restore(comp);
-	ddp_aal_cfg_restore(comp);
 }
 
 static bool debug_skip_first_br;
@@ -2140,8 +2116,7 @@ static void mtk_aal_prepare(struct mtk_ddp_comp *comp)
 	}
 #else
 #if defined(CONFIG_MACH_MT6873) || defined(CONFIG_MACH_MT6853) \
-	|| defined(CONFIG_MACH_MT6833)  || defined(CONFIG_MACH_MT6877) \
-	|| defined(CONFIG_MACH_MT6781)
+	|| defined(CONFIG_MACH_MT6833)  || defined(CONFIG_MACH_MT6877)
 	/* Bypass shadow register and read shadow register */
 	mtk_ddp_write_mask_cpu(comp, AAL_BYPASS_SHADOW,
 		DISP_AAL_SHADOW_CTRL, AAL_BYPASS_SHADOW);
@@ -2306,6 +2281,7 @@ static irqreturn_t mtk_disp_aal_irq_handler(int irq, void *dev_id)
 	struct mtk_disp_aal *priv = dev_id;
 	struct mtk_ddp_comp *comp = &priv->ddp_comp;
 	struct mtk_disp_aal *aal_data = comp_to_aal(comp);
+
 	if (spin_trylock_irqsave(&g_aal_clock_lock, flags)) {
 		if (atomic_read(&aal_data->is_clock_on) != 1)
 			AALIRQ_LOG("clock is off\n");
@@ -2470,25 +2446,7 @@ static const struct mtk_disp_aal_data mt6853_aal_driver_data = {
 	.bitShift = 16,
 };
 
-static const struct mtk_disp_aal_data mt6877_aal_driver_data = {
-	.support_shadow = false,
-	.aal_dre_hist_start = 1536,
-	.aal_dre_hist_end   = 4604,
-	.aal_dre_gain_start = 4608,
-	.aal_dre_gain_end   = 6780,
-	.bitShift = 16,
-};
-
 static const struct mtk_disp_aal_data mt6833_aal_driver_data = {
-	.support_shadow = false,
-	.aal_dre_hist_start = 1536,
-	.aal_dre_hist_end   = 4604,
-	.aal_dre_gain_start = 4608,
-	.aal_dre_gain_end   = 6780,
-	.bitShift = 16,
-};
-
-static const struct mtk_disp_aal_data mt6781_aal_driver_data = {
 	.support_shadow = false,
 	.aal_dre_hist_start = 1536,
 	.aal_dre_hist_end   = 4604,
@@ -2504,12 +2462,8 @@ static const struct of_device_id mtk_disp_aal_driver_dt_match[] = {
 	  .data = &mt6873_aal_driver_data},
 	{ .compatible = "mediatek,mt6853-disp-aal",
 	  .data = &mt6853_aal_driver_data},
-	{ .compatible = "mediatek,mt6877-disp-aal",
-	  .data = &mt6877_aal_driver_data},
 	{ .compatible = "mediatek,mt6833-disp-aal",
 	  .data = &mt6833_aal_driver_data},
-	{ .compatible = "mediatek,mt6781-disp-aal",
-	  .data = &mt6781_aal_driver_data},
 	{},
 };
 
@@ -2708,12 +2662,4 @@ void disp_aal_debug(const char *opt)
 		pr_notice("[debug] debug_ess_en=%d\n", g_aal_ess_en);
 		pr_notice("[debug] debug_dre_en=%d\n", g_aal_dre_en);
 	}
-}
-
-void disp_aal_set_bypass(struct drm_crtc *crtc, int bypass)
-{
-	int ret;
-
-	ret = mtk_crtc_user_cmd(crtc, default_comp, BYPASS_AAL, &bypass);
-	DDPFUNC("ret = %d", ret);
 }
