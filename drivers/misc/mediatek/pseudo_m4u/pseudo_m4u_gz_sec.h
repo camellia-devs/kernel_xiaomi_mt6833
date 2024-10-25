@@ -13,8 +13,6 @@
 #ifndef PSEUDO_M4U_GZ_SEC_H
 #define PSEUDO_M4U_GZ_SEC_H
 
-#include <linux/mutex.h>
-
 #include "kree/mem.h"
 #include "tz_m4u.h"
 #include "trustzone/kree/system.h"
