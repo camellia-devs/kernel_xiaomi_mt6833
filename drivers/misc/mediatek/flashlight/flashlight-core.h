@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -110,6 +111,10 @@ struct flashlight_dev {
 	int low_pt_level;
 	int charger_status;
 	int sw_disable_status;
+	/* BSP.Charge - 2020.11.25 - Config thermal framework -start */
+	int need_cooler;
+	int cooler_level;
+	/* BSP.Charge - 2020.11.25 - Config thermal framework -end */
 };
 
 /* device arguments */
@@ -135,6 +140,10 @@ int flashlight_dev_register_by_device_id(
 		struct flashlight_device_id *dev_id,
 		struct flashlight_operations *dev_ops);
 int flashlight_dev_unregister_by_device_id(struct flashlight_device_id *dev_id);
+/* BSP.Charge - 2020.11.25 - Config thermal framework -start */
+int flashlight_get_max_duty(void);
+int flashlight_set_cooler_level(int level);
+/* BSP.Charge - 2020.11.25 - Config thermal framework -end */
 
 /* get id and index */
 int flashlight_get_type_id(int type_index);
