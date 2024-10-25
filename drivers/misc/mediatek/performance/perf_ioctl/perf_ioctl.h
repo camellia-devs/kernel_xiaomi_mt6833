@@ -80,20 +80,6 @@ struct _EARA_NN_PACKAGE {
 	};
 };
 
-
-#define EARA_MAX_COUNT 10
-#define EARA_PROC_NAME_LEN 16
-
-struct _EARA_THRM_PACKAGE {
-	__s32 request;
-	__s32 pair_pid[EARA_MAX_COUNT];
-	__u64 pair_bufid[EARA_MAX_COUNT];
-	__s32 pair_tfps[EARA_MAX_COUNT];
-	__s32 pair_diff[EARA_MAX_COUNT];
-	char proc_name[EARA_MAX_COUNT][EARA_PROC_NAME_LEN];
-};
-
-
 enum  {
 	USAGE_DEVTYPE_CPU  = 0,
 	USAGE_DEVTYPE_GPU  = 1,
@@ -107,7 +93,6 @@ enum  {
 #define FPSGO_DEQUEUE                _IOW('g', 3,  struct _FPSGO_PACKAGE)
 #define FPSGO_VSYNC                  _IOW('g', 5,  struct _FPSGO_PACKAGE)
 #define FPSGO_TOUCH                  _IOW('g', 10, struct _FPSGO_PACKAGE)
-#define FPSGO_SWAP_BUFFER            _IOW('g', 14, struct _FPSGO_PACKAGE)
 #define FPSGO_QUEUE_CONNECT          _IOW('g', 15, struct _FPSGO_PACKAGE)
 #define FPSGO_BQID                   _IOW('g', 16, struct _FPSGO_PACKAGE)
 
@@ -115,10 +100,6 @@ enum  {
 #define EARA_NN_END                 _IOW('g', 2, struct _EARA_NN_PACKAGE)
 #define EARA_GETUSAGE               _IOW('g', 3, struct _EARA_NN_PACKAGE)
 #define EARA_GETSTATE               _IOW('g', 4, struct _EARA_NN_PACKAGE)
-
-#define EARA_ENABLE                 _IOW('g', 1, struct _EARA_THRM_PACKAGE)
-#define EARA_GETINFO                _IOW('g', 2, struct _EARA_THRM_PACKAGE)
-#define EARA_TDIFF                  _IOW('g', 3, struct _EARA_THRM_PACKAGE)
 
 #endif
 

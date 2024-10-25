@@ -51,15 +51,10 @@ int fpsgo_fbt2fstb_update_cpu_frame_info(
 	unsigned int Max_cap,
 	unsigned long long mid);
 void fpsgo_fbt2fstb_query_fps(int pid, unsigned long long bufID,
-		int *target_fps, int *target_cpu_time, int *fps_margin,
-		int tgid, unsigned long long mid, int *quantile_cpu_time,
-		int *quantile_gpu_time);
+		int *target_fps, int *target_cpu_time,
+		int tgid, unsigned long long mid);
 void fpsgo_ctrl2fstb_dfrc_fps(int dfrc_fps);
 
-/* EARA */
-void eara2fstb_get_tfps(int max_cnt, int *pid, unsigned long long *buf_id,
-				int *tfps);
-void eara2fstb_tfps_mdiff(int pid, unsigned long long buf_id, int diff);
 #else
 static inline int is_fstb_enable(void) { return 0; }
 static inline int fpsgo_ctrl2fstb_switch_fstb(int en) { return 0; }
@@ -84,16 +79,9 @@ static inline int fpsgo_fbt2fstb_update_cpu_frame_info(
 	unsigned int Max_cap,
 	unsigned long long mid) { return 0; }
 static inline void fpsgo_fbt2fstb_query_fps(int pid,
-		int *target_fps, int *target_cpu_time, int *fps_margin,
-		int tgid, unsigned long long mid, int *quantile_cpu_time,
-		int *quantile_gpu_time) { }
+			int *target_fps, int *target_cpu_time,
+			int tgid, unsigned long long mid) { }
 static void fpsgo_ctrl2fstb_dfrc_fps(int dfrc_fps) { }
-
-/* EARA */
-static inline void eara2fstb_get_tfps(int max_cnt, int *pid,
-		unsigned long long *buf_id, int *tfps) { }
-static inline void eara2fstb_tfps_mdiff(int pid, unsigned long long buf_id,
-		int diff) { }
 
 #endif
 

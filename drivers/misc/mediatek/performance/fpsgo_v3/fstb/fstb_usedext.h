@@ -58,17 +58,13 @@ struct FSTB_FRAME_INFO {
 	char proc_name[16];
 	int target_fps;
 	int target_fps_margin;
-	int target_fps_margin_gpu;
 	int target_fps_margin2;
 	int target_fps_margin_dbnc_a;
 	int target_fps_margin_dbnc_b;
-	int target_fps_margin_gpu_dbnc_a;
-	int target_fps_margin_gpu_dbnc_b;
 	int queue_fps;
 	unsigned long long bufid;
 	int in_list;
 	int new_info;
-	int target_fps_diff;
 
 	long long m_c_time;
 	unsigned int m_c_cap;
@@ -96,8 +92,6 @@ struct FSTB_FRAME_INFO {
 	int weighted_gpu_time_end;
 	unsigned long long sorted_weighted_cpu_time[FRAME_TIME_BUFFER_SIZE];
 	unsigned long long sorted_weighted_gpu_time[FRAME_TIME_BUFFER_SIZE];
-	int quantile_cpu_time;
-	int quantile_gpu_time;
 
 	unsigned long long gblock_b;
 	unsigned long long gblock_time;
