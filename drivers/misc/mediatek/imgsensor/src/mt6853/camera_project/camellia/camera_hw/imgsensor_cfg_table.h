@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -31,6 +32,7 @@ enum IMGSENSOR_HW_PIN {
 	IMGSENSOR_HW_PIN_AVDD,
 	IMGSENSOR_HW_PIN_DVDD,
 	IMGSENSOR_HW_PIN_DOVDD,
+	IMGSENSOR_HW_PIN_SMARTLDO,
 #ifdef MIPI_SWITCH
 	IMGSENSOR_HW_PIN_MIPI_SWITCH_EN,
 	IMGSENSOR_HW_PIN_MIPI_SWITCH_SEL,
@@ -70,12 +72,15 @@ enum IMGSENSOR_HW_PIN_STATE {
 	/* For backward compatible */
 #define AFVDD       IMGSENSOR_HW_PIN_UNDEF
 
+//避免因新增档位影响到其他的驱动，所以不在IMGSENSOR_HW_PIN_STATE中新增，只定义宏的方式，供SMART LDO使用
+#define 	IMGSENSOR_HW_PIN_STATE_LEVEL_1150   (IMGSENSOR_HW_PIN_STATE_LEVEL_HIGH + 1)
 
 /* Voltage */
 #define Vol_Low   IMGSENSOR_HW_PIN_STATE_LEVEL_0
 #define Vol_High  IMGSENSOR_HW_PIN_STATE_LEVEL_HIGH
 #define Vol_1000  IMGSENSOR_HW_PIN_STATE_LEVEL_1000
 #define Vol_1100  IMGSENSOR_HW_PIN_STATE_LEVEL_1100
+#define Vol_1150  IMGSENSOR_HW_PIN_STATE_LEVEL_1150
 #define Vol_1200  IMGSENSOR_HW_PIN_STATE_LEVEL_1200
 #define Vol_1210  IMGSENSOR_HW_PIN_STATE_LEVEL_1210
 #define Vol_1220  IMGSENSOR_HW_PIN_STATE_LEVEL_1220

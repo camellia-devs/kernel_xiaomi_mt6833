@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,7 +19,129 @@
 #include "imgsensor_cfg_table.h"
 
 /* Legacy design */
+
+#ifdef TARGET_PRODUCT_CAMELLIA
 struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence[] = {
+
+#if defined(OV48B_QTECH_MAIN_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_OV48B_QTECH_MAIN_MIPI_RAW,
+		{
+			{RST, Vol_Low, 1},
+			{SensorMCLK, Vol_High, 0},
+			{DOVDD, Vol_1800, 0},
+			{AVDD, Vol_2800, 0},
+			{DVDD, Vol_1150, 1},
+			//{AFVDD, Vol_2800, 2},
+			{RST, Vol_High, 5},
+		},
+	},
+#endif
+
+#if defined(OV48B_AAC_MAIN_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_OV48B_AAC_MAIN_MIPI_RAW,
+		{
+			{RST, Vol_Low, 1},
+			{SensorMCLK, Vol_High, 0},
+			{DOVDD, Vol_1800, 0},
+			{AVDD, Vol_2800, 0},
+			{DVDD, Vol_1150, 1},
+			//{AFVDD, Vol_2800, 2},
+			{RST, Vol_High, 5},
+		},
+	},
+#endif
+
+#if defined(OV8856_OFILM_FRONT_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_OV8856_OFILM_FRONT_MIPI_RAW,
+		{
+			{RST, Vol_Low, 1},
+			{SensorMCLK, Vol_High, 0},
+			{DOVDD, Vol_1800, 0},
+			{AVDD, Vol_2800, 0},
+			{DVDD, Vol_1200, 1},
+			//{AFVDD, Vol_2800, 2},
+			{RST, Vol_High, 1},
+		},
+	},
+#endif
+
+#if defined(OV8856_AAC_FRONT_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_OV8856_AAC_FRONT_MIPI_RAW,
+		{
+			{RST, Vol_Low, 1},
+			{SensorMCLK, Vol_High, 0},
+			{DOVDD, Vol_1800, 0},
+			{AVDD, Vol_2800, 0},
+			{DVDD, Vol_1200, 1},
+			//{AFVDD, Vol_2800, 2},
+			{RST, Vol_High, 1},
+		},
+	},
+#endif
+
+#if defined(GC02M1B_QTECH_DEPTH_MIPI_MONO)
+	{
+		SENSOR_DRVNAME_GC02M1B_QTECH_DEPTH_MIPI_MONO,
+		{
+			{RST, Vol_Low, 1},
+			{DOVDD, Vol_1800, 0},
+			{AVDD, Vol_2800, 1},
+			{SensorMCLK, Vol_High, 1},
+			{RST, Vol_High, 1}
+		},
+	},
+#endif
+
+#if defined(GC02M1B_AAC_DEPTH_MIPI_MONO)
+	{
+		SENSOR_DRVNAME_GC02M1B_AAC_DEPTH_MIPI_MONO,
+		{
+			{RST, Vol_Low, 1},
+			{DOVDD, Vol_1800, 0},
+			{AVDD, Vol_2800, 1},
+			{SensorMCLK, Vol_High, 1},
+			{RST, Vol_High, 1}
+		},
+	},
+#endif
+
+#if defined(HI259H_QTECH_MACRO_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_HI259H_QTECH_MACRO_MIPI_RAW,
+		{
+			{RST, Vol_High, 1, Vol_High},
+			{DOVDD, Vol_1800, 0},
+			{AVDD, Vol_2800, 1},
+			{SensorMCLK, Vol_High, 2},
+			{RST, Vol_Low, 10, Vol_High}
+		},
+	},
+#endif
+
+#if defined(HI259H_AAC_MACRO_MIPI_RAW)
+	{
+	    SENSOR_DRVNAME_HI259H_AAC_MACRO_MIPI_RAW,
+		{
+			{RST, Vol_Low, 1},
+			{DOVDD, Vol_1800, 0},
+			{AVDD, Vol_2800, 1},
+			{SensorMCLK, Vol_High, 2},
+			{RST, Vol_High, 10}
+		},
+	},
+#endif
+
+	/* add new sensor before this line */
+	{NULL,},
+};
+
+#else
+struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence[] = {
+
 #if defined(S5KJD1_MIPI_RAW)
 	{
 		SENSOR_DRVNAME_S5KJD1_MIPI_RAW,
@@ -42,41 +165,10 @@ struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence[] = {
 			{RST, Vol_Low, 1},
 			{DOVDD, Vol_1800, 1},
 			{AVDD, Vol_2800, 0},
-#ifdef CONFIG_REGULATOR_RT5133
-			{AVDD1, Vol_1800, 0},
-#endif
-		//	{AFVDD, Vol_2800, 0},
+			{AFVDD, Vol_2800, 0},
 			{DVDD, Vol_1100, 0},
 			{SensorMCLK, Vol_High, 1},
 			{RST, Vol_High, 3}
-		},
-	},
-#endif
-#if defined(OV48B_MIPI_RAW)
-	{
-		SENSOR_DRVNAME_OV48B_MIPI_RAW,
-		{
-			{RST, Vol_Low, 1},
-			{SensorMCLK, Vol_High, 0},
-			{DOVDD, Vol_1800, 0},
-			{AVDD, Vol_2800, 0},
-			{DVDD, Vol_1200, 5},
-			//{AFVDD, Vol_2800, 2},
-			{RST, Vol_High, 5},
-		},
-	},
-#endif
-#if defined(S5K3P9SP_MIPI_RAW)
-	{
-		SENSOR_DRVNAME_S5K3P9SP_MIPI_RAW,
-		{
-			{RST, Vol_Low, 1},
-			{DVDD, Vol_1100, 1},
-			{AVDD, Vol_2800, 1},
-			{DOVDD, Vol_1800, 0},
-			{SensorMCLK, Vol_High, 0},
-			//{AFVDD, Vol_2800, 5},
-			{RST, Vol_High, 2},
 		},
 	},
 #endif
@@ -101,9 +193,9 @@ struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence[] = {
 		SENSOR_DRVNAME_S5K3M5SX_MIPI_RAW,
 		{
 			{RST, Vol_Low, 1},
-			{DVDD, Vol_1100, 1},
-			{AVDD, Vol_2800, 1},
-			//{AFVDD, Vol_2800, 0},
+			{DVDD, Vol_1100, 0},
+			{AVDD, Vol_2800, 0},
+			{AFVDD, Vol_2800, 0},
 			{DOVDD, Vol_1800, 1},
 			{RST, Vol_High, 2},
 			{SensorMCLK, Vol_High, 1}
@@ -177,22 +269,10 @@ struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence[] = {
 		{
 			{PDN, Vol_Low, 0},
 			{RST, Vol_Low, 0},
-#ifdef CONFIG_REGULATOR_RT5133
-			//To trigger ex-LDO output 2.8V
-			{AVDD, Vol_1800, 0},
-#else
-			// PMIC output 2.8V
 			{AVDD, Vol_2800, 0},
-#endif
 			{DOVDD, Vol_1800, 0},
-#ifdef CONFIG_REGULATOR_RT5133
-			//To trigger ex-LDO output 1.1V
-			{DVDD, Vol_1800, 0},
-#else
-			//PMIC output 1.1V
 			{DVDD, Vol_1100, 0},
-#endif
-//			{AFVDD, Vol_2800, 1},
+			{AFVDD, Vol_2800, 1},
 			{SensorMCLK, Vol_High, 1},
 			{PDN, Vol_High, 0},
 			{RST, Vol_High, 10}
@@ -1041,6 +1121,34 @@ struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence[] = {
 		},
 	},
 #endif
+#if defined(OV48B_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_OV48B_MIPI_RAW,
+		{
+			{RST, Vol_Low, 1},
+			{SensorMCLK, Vol_High, 0},
+			{DOVDD, Vol_1800, 0},
+			{AVDD, Vol_2800, 0},
+			{DVDD, Vol_1200, 5},
+			//{AFVDD, Vol_2800, 2},
+			{RST, Vol_High, 5},
+		},
+	},
+#endif
+#if defined(S5K3P9SP_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_S5K3P9SP_MIPI_RAW,
+		{
+			{SensorMCLK, Vol_High, 0},
+			{RST, Vol_Low, 1},
+			{DVDD, Vol_1100, 1},
+			{AVDD, Vol_2800, 1},
+			{DOVDD, Vol_1800, 0},
+			//{AFVDD, Vol_2800, 5},
+			{RST, Vol_High, 2},
+		},
+	},
+#endif
 #if defined(GC8054_MIPI_RAW)
 	{
 		SENSOR_DRVNAME_GC8054_MIPI_RAW,
@@ -1134,4 +1242,4 @@ struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence[] = {
 	/* add new sensor before this line */
 	{NULL,},
 };
-
+#endif

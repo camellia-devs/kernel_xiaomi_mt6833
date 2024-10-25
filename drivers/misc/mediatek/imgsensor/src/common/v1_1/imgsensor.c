@@ -52,10 +52,6 @@
 #endif
 #include "imgsensor.h"
 
-#ifdef SENINF_N3D_SUPPORT
-#include "n3d_fsync/n3d_if.h"
-#endif
-
 #if defined(CONFIG_MTK_CAM_SECURE_I2C)
 #include "imgsensor_ca.h"
 #endif
@@ -700,7 +696,7 @@ static inline int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 	PK_DBG("[%s]Entry%d\n", __func__, pSensorGetInfo->SensorId);
 
 	for (i = MSDK_SCENARIO_ID_CAMERA_PREVIEW;
-			i < MSDK_SCENARIO_ID_CUSTOM15;
+			i < MSDK_SCENARIO_ID_CUSTOM5;
 			i++) {
 		imgsensor_sensor_get_info(psensor, i, &info, &config);
 
@@ -1763,22 +1759,6 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_DEBUG_IMGSENSOR:
 		imgsensor_hw_dump(&gimgsensor.hw);
 		break;
-#ifdef SENINF_N3D_SUPPORT
-	case SENSOR_FEATURE_SET_STREAMING_SUSPEND:
-		ret = imgsensor_sensor_feature_control(psensor,
-					pFeatureCtrl->FeatureId,
-					(unsigned char *)pFeaturePara,
-					(unsigned int *)&FeatureParaLen);
-		set_sensor_streaming_state((int)psensor->inst.sensor_idx, 0);
-		break;
-	case SENSOR_FEATURE_SET_STREAMING_RESUME:
-		ret = imgsensor_sensor_feature_control(psensor,
-					pFeatureCtrl->FeatureId,
-					(unsigned char *)pFeaturePara,
-					(unsigned int *)&FeatureParaLen);
-		set_sensor_streaming_state((int)psensor->inst.sensor_idx, 1);
-		break;
-#endif
 	default:
 		ret = imgsensor_sensor_feature_control(psensor,
 					pFeatureCtrl->FeatureId,

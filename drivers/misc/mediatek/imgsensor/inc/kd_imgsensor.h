@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -177,7 +178,8 @@
 #define OV8865_SENSOR_ID                        0x8865
 #define OV8858_SENSOR_ID                        0x8858
 #define OV8858S_SENSOR_ID                      (0x8858+1)
-#define OV8856_SENSOR_ID                        0x885A
+#define OV8856_OFILM_FRONT_SENSOR_ID            0x885A
+#define OV8856_AAC_FRONT_SENSOR_ID              0x885B
 #define OV8830_SENSOR_ID                        0x8830
 #define OV8825_SENSOR_ID                        0x8825
 #define OV7675_SENSOR_ID                        0x7673
@@ -267,6 +269,9 @@
 #define HI251_SENSOR_ID                         0x0084
 #define HI191MIPI_SENSOR_ID                     0x0191
 #define HIVICF_SENSOR_ID                        0x0081
+#define HI259H_QTECH_MACRO_SENSOR_ID            0xE1
+#define HI259H_AAC_MACRO_SENSOR_ID              (0xE1+1)
+
 /*MT*/
 #define MT9D011_SENSOR_ID                       0x1511
 #define MT9D111_SENSOR_ID                       0x1511
@@ -353,7 +358,8 @@
 #define OV02B10_SENSOR_ID                       0x002b
 
 
-#define OV48B_SENSOR_ID                         0x564842
+#define OV48B_QTECH_MAIN_SENSOR_ID              0x4842
+#define OV48B_AAC_MAIN_SENSOR_ID                0x4843
 #define S5K3P9SP_SENSOR_ID                      0x3109
 #define GC8054_SENSOR_ID                        0x8054
 #define GC02M0_SENSOR_ID                        0x02d0
@@ -361,7 +367,8 @@
 #define GC02M0_SENSOR_ID2                       0x02d2
 #define GC02K0_SENSOR_ID                        0x2385
 #define OV16A10_SENSOR_ID                       0x561641
-#define GC02M1B_SENSOR_ID                       0x02e0
+#define GC02M1B_QTECH_DEPTH_SENSOR_ID           0x02e0
+#define GC02M1B_AAC_DEPTH_SENSOR_ID             (0x02e0 + 1)
 
 /* CAMERA DRIVER NAME */
 #define CAMERA_HW_DEVNAME                       "kd_camera_hw"
@@ -422,7 +429,8 @@
 #define SENSOR_DRVNAME_OV8865_MIPI_RAW          "ov8865_mipi_raw"
 #define SENSOR_DRVNAME_OV8858_MIPI_RAW          "ov8858_mipi_raw"
 #define SENSOR_DRVNAME_OV8858S_MIPI_RAW         "ov8858s_mipi_raw"
-#define SENSOR_DRVNAME_OV8856_MIPI_RAW          "ov8856_mipi_raw"
+#define SENSOR_DRVNAME_OV8856_OFILM_FRONT_MIPI_RAW    "ov8856_ofilm_front_mipi_raw"
+#define SENSOR_DRVNAME_OV8856_AAC_FRONT_MIPI_RAW      "ov8856_aac_front_mipi_raw"
 #define SENSOR_DRVNAME_OV8830_RAW               "ov8830_raw"
 #define SENSOR_DRVNAME_OV8825_MIPI_RAW          "ov8825_mipi_raw"
 #define SENSOR_DRVNAME_OV7675_YUV               "ov7675_yuv"
@@ -504,6 +512,9 @@
 #define SENSOR_DRVNAME_HI544_MIPI_RAW           "hi544_mipi_raw"
 #define SENSOR_DRVNAME_HI253_YUV                "hi253_yuv"
 #define SENSOR_DRVNAME_HI191_MIPI_RAW           "hi191_mipi_raw"
+#define SENSOR_DRVNAME_HI259H_QTECH_MACRO_MIPI_RAW    "hi259h_qtech_macro_mipi_raw"
+#define SENSOR_DRVNAME_HI259H_AAC_MACRO_MIPI_RAW      "hi259h_aac_macro_mipi_raw"
+
 /*MT*/
 #define SENSOR_DRVNAME_MT9P012_RAW              "mt9p012_raw"
 #define SENSOR_DRVNAME_MT9P015_RAW              "mt9p015_raw"
@@ -566,7 +577,8 @@
 #define SENSOR_DRVNAME_OV02A10_MIPI_MONO        "ov02a10_mipi_mono"
 #define SENSOR_DRVNAME_IMX686_MIPI_RAW          "imx686_mipi_raw"
 #define SENSOR_DRVNAME_IMX616_MIPI_RAW          "imx616_mipi_raw"
-#define SENSOR_DRVNAME_OV48B_MIPI_RAW           "ov48b_mipi_raw"
+#define SENSOR_DRVNAME_OV48B_QTECH_MAIN_MIPI_RAW     "ov48b_qtech_main_mipi_raw"
+#define SENSOR_DRVNAME_OV48B_AAC_MAIN_MIPI_RAW       "ov48b_aac_main_mipi_raw"
 #define SENSOR_DRVNAME_S5K3P9SP_MIPI_RAW        "s5k3p9sp_mipi_raw"
 #define SENSOR_DRVNAME_GC8054_MIPI_RAW          "gc8054_mipi_raw"
 #define SENSOR_DRVNAME_GC02M0B_MIPI_MONO        "gc02m0b_mipi_mono"
@@ -574,7 +586,8 @@
 #define SENSOR_DRVNAME_GC02M0B_MIPI_MONO2       "gc02m0b_mipi_mono2"
 #define SENSOR_DRVNAME_GC02K0B_MIPI_MONO        "gc02k0b_mipi_mono"
 #define SENSOR_DRVNAME_OV16A10_MIPI_RAW         "ov16a10_mipi_raw"
-#define SENSOR_DRVNAME_GC02M1B_MIPI_MONO        "gc02m1b_mipi_mono"
+#define SENSOR_DRVNAME_GC02M1B_QTECH_DEPTH_MIPI_MONO   "gc02m1b_qtech_depth_mipi_mono"
+#define SENSOR_DRVNAME_GC02M1B_AAC_DEPTH_MIPI_MONO     "gc02m1b_aac_depth_mipi_mono"
 #define SENSOR_DRVNAME_OV48C_MIPI_RAW           "ov48c_mipi_raw"
 #define SENSOR_DRVNAME_IMX355_MIPI_RAW          "imx355_mipi_raw"
 #define SENSOR_DRVNAME_OV13B10_MIPI_RAW         "ov13b10_mipi_raw"

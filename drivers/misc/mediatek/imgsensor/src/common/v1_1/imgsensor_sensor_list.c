@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -22,8 +23,57 @@
  * 2. This file should be the same as
  *    mediatek\custom\common\hal\imgsensor\src\sensorlist.cpp
  */
+#ifdef TARGET_PRODUCT_CAMELLIA
 struct IMGSENSOR_SENSOR_LIST
 	gimgsensor_sensor_list[MAX_NUM_OF_SUPPORT_SENSOR] = {
+
+#if defined(OV48B_QTECH_MAIN_MIPI_RAW)
+{OV48B_QTECH_MAIN_SENSOR_ID, SENSOR_DRVNAME_OV48B_QTECH_MAIN_MIPI_RAW,
+	OV48B_QTECH_MAIN_MIPI_RAW_SensorInit},
+#endif
+
+#if defined(OV48B_AAC_MAIN_MIPI_RAW)
+{OV48B_AAC_MAIN_SENSOR_ID, SENSOR_DRVNAME_OV48B_AAC_MAIN_MIPI_RAW,
+	OV48B_AAC_MAIN_MIPI_RAW_SensorInit},
+#endif
+
+#if defined(OV8856_OFILM_FRONT_MIPI_RAW)
+{OV8856_OFILM_FRONT_SENSOR_ID, SENSOR_DRVNAME_OV8856_OFILM_FRONT_MIPI_RAW,
+	OV8856_MIPI_RAW_SensorInit},
+#endif
+
+#if defined(OV8856_AAC_FRONT_MIPI_RAW)
+{OV8856_AAC_FRONT_SENSOR_ID, SENSOR_DRVNAME_OV8856_AAC_FRONT_MIPI_RAW,
+	OV8856_AAC_MIPI_RAW_SensorInit},
+#endif
+
+#if defined(GC02M1B_QTECH_DEPTH_MIPI_MONO)
+{GC02M1B_QTECH_DEPTH_SENSOR_ID, SENSOR_DRVNAME_GC02M1B_QTECH_DEPTH_MIPI_MONO,
+	GC02M1B_MIPI_MONO_SensorInit},
+#endif
+
+#if defined(GC02M1B_AAC_DEPTH_MIPI_MONO)
+{GC02M1B_AAC_DEPTH_SENSOR_ID, SENSOR_DRVNAME_GC02M1B_AAC_DEPTH_MIPI_MONO,
+	GC02M1B_AAC_MIPI_MONO_SensorInit},
+#endif
+
+#if defined(HI259H_QTECH_MACRO_MIPI_RAW)
+{HI259H_QTECH_MACRO_SENSOR_ID, SENSOR_DRVNAME_HI259H_QTECH_MACRO_MIPI_RAW,
+	HI259H_MIPI_RAW_SensorInit},
+#endif
+
+#if defined(HI259H_AAC_MACRO_MIPI_RAW)
+{HI259H_AAC_MACRO_SENSOR_ID, SENSOR_DRVNAME_HI259H_AAC_MACRO_MIPI_RAW,
+       HI259H_AAC_MIPI_RAW_SensorInit},
+#endif
+
+	/*  ADD sensor driver before this line */
+	{0, {0}, NULL}, /* end of list */
+};
+#else
+struct IMGSENSOR_SENSOR_LIST
+	gimgsensor_sensor_list[MAX_NUM_OF_SUPPORT_SENSOR] = {
+
 #if defined(S5KJD1_MIPI_RAW)
 {S5KJD1_SENSOR_ID, SENSOR_DRVNAME_S5KJD1_MIPI_RAW,
 	S5KJD1_MIPI_RAW_SensorInit},
@@ -589,6 +639,6 @@ struct IMGSENSOR_SENSOR_LIST
 	/*  ADD sensor driver before this line */
 	{0, {0}, NULL}, /* end of list */
 };
-
+#endif
 /* e_add new sensor driver here */
 
