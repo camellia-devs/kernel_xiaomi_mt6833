@@ -184,7 +184,7 @@ static void print_vio_mask_sta(void)
 	vio_mask_sta_num = mtk_devapc_ctx->soc->vio_info->vio_mask_sta_num;
 
 	for (i = 0; i < vio_mask_sta_num; i++) {
-		DEVAPC_MSG("%s: (%d:0x%x) %s: (%d:0x%x)\n",
+		DEVAPC_DBG_MSG("%s: (%d:0x%x) %s: (%d:0x%x)\n",
 				"INFRA VIO_MASK", i,
 				readl(mtk_devapc_pd_get(VIO_MASK,
 						mtk_devapc_ctx->soc->devapc_pds,
@@ -236,7 +236,7 @@ static void start_devapc(void)
 	writel(0x80000000, pd_apc_con_reg);
 	print_vio_mask_sta();
 
-	DEVAPC_MSG("Clear INFRA VIO_STA and unmask INFRA VIO_MASK...\n");
+	DEVAPC_DBG_MSG("Clear INFRA VIO_STA and unmask INFRA VIO_MASK...\n");
 
 	vio_shift_sta = readl(pd_vio_shift_sta_reg);
 	if (vio_shift_sta) {
@@ -249,15 +249,11 @@ static void start_devapc(void)
 	} else
 		DEVAPC_MSG("No violation happened before booting kernel\n");
 
-	DEVAPC_MSG("Number of devices: %u\n", mtk_devapc_ctx->soc->ndevices);
-
-	for (i = 0; i < mtk_devapc_ctx->soc->ndevices; i++) {
+	for (i = 0; i < mtk_devapc_ctx->soc->ndevices; i++)
 		if (true == device_info[i].enable_vio_irq) {
-			unmask_infra_module_irq(i);
 			clear_infra_vio_status(i);
-		} else
-			mask_infra_module_irq(i);
-	}
+			unmask_infra_module_irq(i);
+		}
 
 	print_vio_mask_sta();
 
@@ -379,7 +375,7 @@ static uint32_t sync_vio_dbg(int shift_bit)
 	for (shift_count = 0; (shift_count < 100) &&
 		((readl(pd_vio_shift_con_reg) & 0x3) != 0x3);
 		++shift_count)
-		DEVAPC_MSG("Syncing VIO DBG0 & DBG1 (%d, %d)\n",
+		DEVAPC_DBG_MSG("Syncing VIO DBG0 & DBG1 (%d, %d)\n",
 				shift_bit, shift_count);
 
 	if ((readl(pd_vio_shift_con_reg) & 0x3) == 0x3)
@@ -395,7 +391,7 @@ static uint32_t sync_vio_dbg(int shift_bit)
 	writel(0x0, pd_vio_shift_sel_reg);
 	writel(0x1 << shift_bit, pd_vio_shift_sta_reg);
 
-	DEVAPC_MSG("%s%X, %s%X, %s%X\n",
+	DEVAPC_DBG_MSG("%s%X, %s%X, %s%X\n",
 			"VIO_SHIFT_STA=0x",
 			readl(pd_vio_shift_sta_reg),
 			"VIO_SHIFT_SEL=0x",
@@ -406,7 +402,6 @@ static uint32_t sync_vio_dbg(int shift_bit)
 	return sync_done;
 }
 
-#if 0
 static void dump_backtrace(void *passed_regs)
 {
 	struct pt_regs *regs = passed_regs;
@@ -426,7 +421,6 @@ static void dump_backtrace(void *passed_regs)
 	DEVAPC_MSG("====== %s ======\n",
 			"End of dumping Device APC violation tracing");
 }
-#endif
 
 static char *perm_to_string(uint32_t perm)
 {
@@ -458,7 +452,7 @@ static uint32_t get_permission(int vio_index, int domain)
 	slave_type = device_info[vio_index].slave_type;
 	config_idx = device_info[vio_index].config_index;
 
-	DEVAPC_MSG("%s, slave type = 0x%x, config_idx = 0x%x\n",
+	DEVAPC_DBG_MSG("%s, slave type = 0x%x, config_idx = 0x%x\n",
 			__func__,
 			slave_type,
 			config_idx);
@@ -477,12 +471,12 @@ static uint32_t get_permission(int vio_index, int domain)
 		return ret;
 	}
 
-	DEVAPC_MSG("%s, dump perm = 0x%x\n", __func__, ret);
+	DEVAPC_DBG_MSG("%s, dump perm = 0x%x\n", __func__, ret);
 
 	apc_set_idx = config_idx % MOD_NO_IN_1_DEVAPC;
 	ret = (ret & (0x3 << (apc_set_idx * 2))) >> (apc_set_idx * 2);
 
-	DEVAPC_MSG("%s, after shipping, dump perm = 0x%x\n",
+	DEVAPC_DBG_MSG("%s, after shipping, dump perm = 0x%x\n",
 			__func__,
 			(ret & 0x3));
 
@@ -507,10 +501,6 @@ uint32_t devapc_vio_check(void)
 }
 EXPORT_SYMBOL(devapc_vio_check);
 
-/*
- * dump_dbg_info - dump all vio dbg info
- *
- */
 void dump_dbg_info(void)
 {
 	uint32_t dbg0 = 0;
@@ -538,8 +528,6 @@ void dump_dbg_info(void)
 
 			dbg0 = readl(vio_dbg0_reg);
 			vio_info->vio_dbg1 = readl(vio_dbg1_reg);
-			DEVAPC_DBG_MSG("%s vio_dbg0=0x%x, vio_dbg1=0x%x\n",
-					__func__, dbg0, vio_info->vio_dbg1);
 
 			vio_info->master_id =
 				(dbg0 & vio_dbgs->infra_vio_dbg_mstid)
@@ -574,77 +562,22 @@ void dump_dbg_info(void)
 }
 EXPORT_SYMBOL(dump_dbg_info);
 
-/*
- * devapc_extract_vio_dbg - get vio dbg info after sync_vio_dbg
- *
- */
-static void devapc_extract_vio_dbg(void)
-{
-	uint32_t dbg0 = 0;
-	uint32_t write_vio, read_vio;
-	uint32_t vio_addr_high;
-	void __iomem *vio_dbg0_reg, *vio_dbg1_reg;
-	const struct mtk_infra_vio_dbg_desc *vio_dbgs;
-	struct mtk_devapc_vio_info *vio_info;
-
-	vio_dbg0_reg = mtk_devapc_pd_get(VIO_DBG0,
-			mtk_devapc_ctx->soc->devapc_pds, 0);
-
-	vio_dbg1_reg = mtk_devapc_pd_get(VIO_DBG1,
-			mtk_devapc_ctx->soc->devapc_pds, 0);
-
-	vio_dbgs = mtk_devapc_ctx->soc->vio_dbgs;
-	vio_info = mtk_devapc_ctx->soc->vio_info;
-
-	dbg0 = readl(vio_dbg0_reg);
-	vio_info->vio_dbg1 = readl(vio_dbg1_reg);
-
-	vio_info->master_id =
-		(dbg0 & vio_dbgs->infra_vio_dbg_mstid)
-		>> vio_dbgs->infra_vio_dbg_mstid_start_bit;
-	vio_info->domain_id =
-		(dbg0 & vio_dbgs->infra_vio_dbg_dmnid)
-		>> vio_dbgs->infra_vio_dbg_dmnid_start_bit;
-	write_vio = (dbg0 & vio_dbgs->infra_vio_dbg_w_vio)
-		>> vio_dbgs->infra_vio_dbg_w_vio_start_bit;
-	read_vio = (dbg0 & vio_dbgs->infra_vio_dbg_r_vio)
-		>> vio_dbgs->infra_vio_dbg_r_vio_start_bit;
-	vio_addr_high = (dbg0 & vio_dbgs->infra_vio_addr_high)
-		>> vio_dbgs->infra_vio_addr_high_start_bit;
-
-	/* violation information */
-	DEVAPC_MSG("%s%s%s%s%x %s%x, %s%x, %s%x\n",
-			"Violation(",
-			read_vio == 1?" R":"",
-			write_vio == 1?" W ) - ":" ) - ",
-			"Vio Addr:0x", vio_info->vio_dbg1,
-			"High:0x", vio_addr_high,
-			"Bus ID:0x", vio_info->master_id,
-			"Dom ID:0x", vio_info->domain_id);
-
-	DEVAPC_MSG("%s - %s%s, %s%i\n",
-			"Violation",
-			"Current Process:", current->comm,
-			"PID:", current->pid);
-}
-
 void handle_sramrom_vio(void)
 {
-	size_t sramrom_vio_sta;
+	size_t sramrom_vio_sta, sramrom_vio_addr;
 	int rw, sramrom_vio;
+	uint32_t master_id, domain_id, dbg1;
 	struct arm_smccc_res res;
 	const struct mtk_sramrom_sec_vio_desc *sramrom_vios;
-	struct mtk_devapc_vio_info *vio_info;
 
 	sramrom_vios = mtk_devapc_ctx->soc->sramrom_sec_vios;
-	vio_info = mtk_devapc_ctx->soc->vio_info;
 
 	arm_smccc_smc(MTK_SIP_KERNEL_CLR_SRAMROM_VIO,
 			0, 0, 0, 0, 0, 0, 0, &res);
 
 	sramrom_vio = res.a0;
 	sramrom_vio_sta = res.a1;
-	vio_info->vio_dbg1 = res.a2;
+	sramrom_vio_addr = res.a2;
 
 	if (sramrom_vio == SRAM_VIOLATION)
 		DEVAPC_MSG("%s, SRAM violation is triggered\n", __func__);
@@ -655,21 +588,22 @@ void handle_sramrom_vio(void)
 		return;
 	}
 
-	vio_info->master_id =
+	master_id =
 		(sramrom_vio_sta & sramrom_vios->sramrom_sec_vio_id_mask) >>
 			sramrom_vios->sramrom_sec_vio_id_shift;
-	vio_info->domain_id =
+	domain_id =
 		(sramrom_vio_sta & sramrom_vios->sramrom_sec_vio_domain_mask) >>
 			sramrom_vios->sramrom_sec_vio_domain_shift;
 	rw =
 		(sramrom_vio_sta & sramrom_vios->sramrom_sec_vio_rw_mask) >>
 			sramrom_vios->sramrom_sec_vio_rw_shift;
+	dbg1 = sramrom_vio_addr;
 
 	DEVAPC_MSG("%s, %s: 0x%x, %s: 0x%x, rw: %s, vio addr: 0x%x\n",
-		__func__, "master_id", vio_info->master_id,
-		"domain_id", vio_info->domain_id,
+		__func__, "master_id", master_id,
+		"domain_id", domain_id,
 		rw ? "Write" : "Read",
-		vio_info->vio_dbg1
+		dbg1
 	);
 }
 
@@ -678,17 +612,12 @@ static irqreturn_t devapc_violation_irq(int irq_number, void *dev_id)
 	int i, device_count;
 	uint32_t perm;
 	const char *vio_master;
-	//struct pt_regs *regs = get_irq_regs();
+	struct pt_regs *regs = get_irq_regs();
 	const struct mtk_device_info *device_info;
 	struct mtk_devapc_vio_info *vio_info;
-	uint32_t shift_bit, vio_shift_sta;
-	uint32_t (*shift_group_get)(uint32_t vio_idx);
-
-	DEVAPC_MSG("%s: ++\n", __func__);
 
 	device_info = mtk_devapc_ctx->soc->device_info;
 	vio_info = mtk_devapc_ctx->soc->vio_info;
-	shift_group_get = mtk_devapc_ctx->soc->shift_group_get;
 
 	if (irq_number != mtk_devapc_ctx->devapc_irq) {
 		DEVAPC_MSG("(ERROR) irq_number %d is not registered\n",
@@ -696,10 +625,8 @@ static irqreturn_t devapc_violation_irq(int irq_number, void *dev_id)
 
 		return IRQ_NONE;
 	}
-
 	print_vio_mask_sta();
-	if (!shift_group_get)
-		dump_dbg_info();
+	dump_dbg_info();
 
 	device_count = mtk_devapc_ctx->soc->ndevices;
 
@@ -707,39 +634,6 @@ static irqreturn_t devapc_violation_irq(int irq_number, void *dev_id)
 	for (i = 0; i < device_count; i++) {
 		if (device_info[i].enable_vio_irq == true
 			&& check_infra_vio_status(i) == VIOLATION_TRIGGERED) {
-
-			/* check vio_shift when enable_vio_irq and vio triggerd */
-			if (shift_group_get) {
-				vio_shift_sta = devapc_vio_check();
-				shift_bit = shift_group_get(i);
-
-				DEVAPC_DBG_MSG("%s:0x%x, %s:%d, %s:%d\n",
-						"vio_shift_sta", vio_shift_sta,
-						"shift_bit", shift_bit,
-						"vio_shift_max_bit", vio_info->vio_shift_max_bit);
-
-				if ((shift_bit <= vio_info->vio_shift_max_bit) &&
-					(vio_shift_sta & (0x1 << shift_bit))) {
-					DEVAPC_MSG("%s:0x%x is matched with %s:%d\n",
-							"vio_shift_sta", vio_shift_sta,
-							"shift_bit", shift_bit);
-
-					if (!sync_vio_dbg(shift_bit))
-						continue;
-
-					devapc_extract_vio_dbg();
-
-					/*
-					 * Ensure that violation info are written before
-					 * further operations
-					 */
-					smp_mb();
-
-				} else
-					DEVAPC_MSG("%s:0x%x is not matched with %s:%d\n",
-							"vio_shift_sta", vio_shift_sta,
-							"shift_bit", shift_bit);
-			}
 
 			clear_infra_vio_status(i);
 			perm = get_permission(i, vio_info->domain_id);
@@ -765,9 +659,7 @@ static irqreturn_t devapc_violation_irq(int irq_number, void *dev_id)
 		}
 	}
 
-	//dump_backtrace(regs);
-
-	DEVAPC_MSG("%s: --\n", __func__);
+	dump_backtrace(regs);
 
 	return IRQ_HANDLED;
 }
@@ -840,8 +732,6 @@ static void devapc_ut(uint32_t cmd)
 	} else {
 		DEVAPC_MSG("%s, cmd(0x%x) not supported\n", __func__, cmd);
 	}
-
-	print_vio_mask_sta();
 }
 
 #ifdef CONFIG_DEVAPC_SWP_SUPPORT
@@ -980,12 +870,10 @@ int mtk_devapc_probe(struct platform_device *pdev,
 	mtk_devapc_ctx->devapc_irq = irq_of_parse_and_map(node,
 			DT_DEVAPC_PD_IDX);
 
-	DEVAPC_MSG("devapc_pd_base: %p, IRQ: %d\n",
+	DEVAPC_DBG_MSG("devapc_pd_base: %p, IRQ: %d\n",
 			mtk_devapc_ctx->devapc_pd_base,
 			mtk_devapc_ctx->devapc_irq);
 
-/* Enable devapc-infra-clock in preloader */
-#ifndef CONFIG_DEVAPC_MT6781
 	/* CCF (Common Clock Framework) */
 	mtk_devapc_ctx->devapc_infra_clk = devm_clk_get(&pdev->dev,
 			"devapc-infra-clock");
@@ -997,13 +885,12 @@ int mtk_devapc_probe(struct platform_device *pdev,
 
 	if (clk_prepare_enable(mtk_devapc_ctx->devapc_infra_clk))
 		return -EINVAL;
-#endif
 
 	start_devapc();
 
 	ret = request_irq(mtk_devapc_ctx->devapc_irq,
 			(irq_handler_t)devapc_violation_irq,
-			IRQF_TRIGGER_NONE, "devapc", NULL);
+			IRQF_TRIGGER_LOW, "devapc", NULL);
 	if (ret) {
 		pr_err(PFX "Failed to request devapc irq, ret(%d)\n", ret);
 		return ret;
@@ -1022,10 +909,7 @@ int mtk_devapc_probe(struct platform_device *pdev,
 
 int mtk_devapc_remove(struct platform_device *dev)
 {
-/* devapc-infra-clock is always on */
-#ifndef CONFIG_DEVAPC_MT6781
 	clk_disable_unprepare(mtk_devapc_ctx->devapc_infra_clk);
-#endif
 	return 0;
 }
 
