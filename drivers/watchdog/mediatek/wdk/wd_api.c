@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -674,7 +675,7 @@ void arch_reset(char mode, const char *cmd)
 	} else {
 		pr_notice("we cannot get console_sem\n");
 	}
-
+	//BSP.System - 2020.12.02 - adb reboot ftm begin
 	if (cmd && !strcmp(cmd, "charger")) {
 		/* do nothing */
 	} else if (cmd && !strcmp(cmd, "recovery")) {
@@ -688,10 +689,12 @@ void arch_reset(char mode, const char *cmd)
 		reboot = WD_SW_RESET_BYPASS_PWR_KEY;
 	} else if (cmd && !strcmp(cmd, "kpoc")) {
 		rtc_mark_kpoc();
+	} else if (cmd && !strcmp(cmd, "ftm")) {
+		rtc_mark_ftm();
 	} else {
 		reboot = WD_SW_RESET_BYPASS_PWR_KEY;
 	}
-
+	//BSP.System - 2020.12.02 - adb reboot ftm end
 	if (cmd && !strcmp(cmd, "ddr-reserve"))
 		reboot |= WD_SW_RESET_KEEP_DDR_RESERVE;
 

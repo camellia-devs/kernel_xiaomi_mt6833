@@ -39,7 +39,6 @@
 #include <uapi/linux/sched/types.h>
 #include <linux/sched/clock.h>
 #include <linux/suspend.h>
-#include <linux/kdebug.h>
 
 /*************************************************************************
  * Feature configure region
@@ -549,16 +548,11 @@ static void kwdt_process_kick(int local_bit, int cpu,
 
 	apxgpt_base = mtk_wdt_apxgpt_base();
 	if (apxgpt_base) {
-		u32 kick_dbg_off = 0;
 		/* "DB" signature */
 		tmp = 0x4442 << 16;
 		tmp |= (local_bit & 0xFF) << 8;
 		tmp |= wk_check_kick_bit() & 0xFF;
-		kick_dbg_off = mtk_wdt_kick_dbg_off();
-		if (kick_dbg_off)
-			__raw_writel(tmp, apxgpt_base + kick_dbg_off);
-		else
-			__raw_writel(tmp, apxgpt_base + 0x7c);
+		__raw_writel(tmp, apxgpt_base + 0x7c);
 	}
 
 	spin_unlock(&lock);

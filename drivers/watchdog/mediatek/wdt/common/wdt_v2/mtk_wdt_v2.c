@@ -61,7 +61,6 @@ int wdt_sspm_irq_id;
 int ext_debugkey_io_eint = -1;
 static int g_apwdt_en_doe = 1;
 static void __iomem *apxgpt_base;
-static u32 kick_dbg_off;
 
 static const struct of_device_id rgu_of_match[] = {
 	{ .compatible = "mediatek,toprgu", },
@@ -80,10 +79,6 @@ __weak int mtk_dbgtop_dram_reserved(int enable)
 };
 
 __weak void dfd_workaround(void) {};
-
-__weak void pwrap_disable(void) {};
-
-__weak void mtk_koro_disable(void) {};
 
 /**---------------------------------------------------------------------
  * Sub feature switch region
@@ -172,7 +167,7 @@ static void mtk_wdt_update_last_restart(void *last, int cpu_id)
 static int mtk_rgu_pause_dvfsrc(int enable)
 {
 #if defined(CONFIG_MACH_MT6779) || defined(CONFIG_MACH_MT6768) \
-	|| defined(CONFIG_MACH_MT6785) || defined(CONFIG_MACH_MT6781)
+	|| defined(CONFIG_MACH_MT6785)
 	unsigned int tmp;
 	unsigned int count = 100;
 
@@ -1113,10 +1108,6 @@ int mtk_wdt_dfd_count_en(int value)
 		tmp &= (~MTK_WDT_DFD_EN);
 		tmp |= MTK_WDT_LATCH_CTL2_KEY;
 		mt_reg_sync_writel(tmp, MTK_WDT_LATCH_CTL2);
-
-#if defined(CONFIG_MACH_MT6781)
-		mt_reg_sync_writel(0x77000000, MTK_WDT_MFG_POWE_EN);
-#endif
 	}
 	pr_debug("mtk_wdt_dfd_en:MTK_WDT_LATCH_CTL2(0x%x)\n",
 		__raw_readl(MTK_WDT_LATCH_CTL2));
@@ -1181,17 +1172,15 @@ int mtk_wdt_dfd_timeout(int value)
 	tmp |= (value|MTK_WDT_LATCH_CTL2_KEY);
 	mt_reg_sync_writel(tmp, MTK_WDT_LATCH_CTL2);
 
+	pr_debug("%s:MTK_WDT_LATCH_CTL2(0x%x)\n",
+		  __func__, __raw_readl(MTK_WDT_LATCH_CTL2));
+
 	return 0;
 }
 
 void __iomem *mtk_wdt_apxgpt_base(void)
 {
 	return apxgpt_base;
-}
-
-u32 mtk_wdt_kick_dbg_off(void)
-{
-	return kick_dbg_off;
 }
 
 #ifndef CONFIG_FIQ_GLUE
@@ -1307,7 +1296,6 @@ int mtk_wdt_dfd_thermal1_dis(int value) {return 0; }
 int mtk_wdt_dfd_thermal2_dis(int value) {return 0; }
 int mtk_wdt_dfd_timeout(int value) {return 0; }
 void __iomem *mtk_wdt_apxgpt_base(void) {return 0; }
-u32 mtk_wdt_kick_dbg_off(void) {return 0; }
 #endif /* #ifndef __USING_DUMMY_WDT_DRV__ */
 
 static const struct of_device_id apxgpt_of_match[] = {
@@ -1344,7 +1332,7 @@ static int mtk_wdt_probe(struct platform_device *dev)
 		wdt_irq_id = irq_of_parse_and_map(dev->dev.of_node, 0);
 		if (!wdt_irq_id) {
 			pr_info("get wdt_irq_id failed, ret: %d\n", wdt_irq_id);
-			wdt_irq_id = 0;
+			return -ENODEV;
 		}
 	}
 
@@ -1385,18 +1373,16 @@ static int mtk_wdt_probe(struct platform_device *dev)
 	#ifdef CONFIG_KICK_SPM_WDT
 	ret = spm_wdt_register_irq((irq_handler_t)mtk_wdt_isr);
 	#else
-	if (AP_RGU_WDT_IRQ_ID)
-		ret = request_irq(AP_RGU_WDT_IRQ_ID, (irq_handler_t)mtk_wdt_isr,
-				    IRQF_TRIGGER_NONE, "mt_wdt", NULL);
+	ret = request_irq(AP_RGU_WDT_IRQ_ID, (irq_handler_t)mtk_wdt_isr,
+			IRQF_TRIGGER_NONE, "mt_wdt", NULL);
 	#endif		/* CONFIG_KICK_SPM_WDT */
 #else
 	pr_debug("CONFIG_FIQ_GLUE: request FIQ\n");
 	#ifdef CONFIG_KICK_SPM_WDT
 	ret = spm_wdt_register_fiq(wdt_fiq);
 	#else
-	if (AP_RGU_WDT_IRQ_ID)
-		ret = request_fiq(AP_RGU_WDT_IRQ_ID, wdt_fiq,
-				    IRQF_TRIGGER_FALLING, NULL);
+	ret = request_fiq(AP_RGU_WDT_IRQ_ID, wdt_fiq,
+			IRQF_TRIGGER_FALLING, NULL);
 	#endif		/* CONFIG_KICK_SPM_WDT */
 #endif
 
@@ -1477,11 +1463,6 @@ static int mtk_wdt_probe(struct platform_device *dev)
 	apxgpt_base = of_iomap(np_apxgpt, 0);
 	if (!apxgpt_base)
 		pr_debug("apxgpt iomap failed\n");
-	else {
-		if (of_property_read_u32(np_apxgpt, "mediatek,kick_off",
-					   &kick_dbg_off))
-			kick_dbg_off = 0;
-	}
 
 	return ret;
 }
@@ -1491,8 +1472,7 @@ static int mtk_wdt_remove(struct platform_device *dev)
 	pr_debug("******** MTK wdt driver remove!! ********\n");
 
 #ifndef __USING_DUMMY_WDT_DRV__ /* FPGA will set this flag */
-	if (AP_RGU_WDT_IRQ_ID)
-		free_irq(AP_RGU_WDT_IRQ_ID, NULL);
+	free_irq(AP_RGU_WDT_IRQ_ID, NULL);
 #endif
 	return 0;
 }
