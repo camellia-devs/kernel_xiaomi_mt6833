@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -73,11 +74,76 @@
 
 #include "mtk_charger_intf.h"
 #include "mtk_charger_init.h"
+#include "../../../../misc/hqsysfs/hqsys_pcba.h"
 
 static struct charger_manager *pinfo;
 static struct list_head consumer_head = LIST_HEAD_INIT(consumer_head);
 static DEFINE_MUTEX(consumer_mutex);
 
+/* BSP.Charger - 2020.11.27 - add for thermal current limit - start */
+#define THERMAL_MAX 25
+/* BSP.Charger - 2020.12.24 - modify thermal current limit - start */
+static int thermal_mitigation_dcp[THERMAL_MAX] = {
+	2000000, 2000000, 2000000, 1600000, 1600000,
+	1600000, 1200000, 1200000, 1000000, 1000000,
+	1000000, 2000000, 2000000, 2000000, 2000000,
+	2000000, 2000000, 2000000, 2000000, 2000000,
+	2000000, 2000000, 0, 0, 0 };
+
+static int thermal_mitigation_qc2[THERMAL_MAX] = {
+	2000000, 2000000, 2000000, 2000000, 2000000,
+	1200000, 1200000, 1200000, 1000000, 1000000,
+	800000, 2000000, 2000000, 2000000, 2000000,
+	2000000, 1700000, 1700000, 1700000, 1700000,
+	1700000, 1700000, 0, 0, 0 };
+
+static int thermal_mitigation_dcp_india[THERMAL_MAX] = {
+	2000000, 2000000, 2000000, 1600000, 1600000,
+	1600000, 1200000, 1200000, 1000000, 1000000,
+	1000000, 2000000, 2000000, 2000000, 2000000,
+	2000000, 2000000, 2000000, 2000000, 2000000,
+	2000000, 2000000, 0, 0, 0 };
+
+static int thermal_mitigation_qc2_india[THERMAL_MAX] = {
+	2000000, 2000000, 2000000, 2000000, 2000000,
+	1200000, 1200000, 1200000, 1000000, 1000000,
+	800000, 2000000, 2000000, 2000000, 2000000,
+	1600000, 1600000, 1600000, 1500000, 1400000,
+	1200000, 1200000, 0, 0, 0 };
+/* BSP.Charger - 2020.12.24 - modify thermal current limit - end */
+
+/* We use soft HVDCP2 solution, no need HVDCP3 */
+/*
+ * static int thermal_mitigation_qc3[THERMAL_MAX] = {
+ *	3000000, 3000000, 2500000, 2500000, 2500000,
+ *	2000000, 2000000, 1500000, 2000000, 1500000,
+ *	1000000, 1000000, 1000000, 1000000, 1500000,
+ *	1000000, 1500000, 685000, 1500000, 685000,
+ *	685000, 685000,  685000, 685000, 685000};
+*/
+/* BSP.Charger - 2020.11.27 - add for thermal current limit - end */
+
+/* BSP.Charger - 2021.01.11 - get pcba version and load curret limit - start */
+void hqsys_pcba_set_thermal_current_limit(void)
+{
+	bool is_india = false;
+
+	PCBA_CONFIG pcba_to_thermal = PCBA_UNKNOW;
+
+	pcba_to_thermal = get_huaqin_pcba_config();
+
+	if (pcba_to_thermal == PCBA_K19P_P1_INDIA || pcba_to_thermal == PCBA_K19P_P1_1_INDIA
+			|| pcba_to_thermal == PCBA_K19P_P2_INDIA || pcba_to_thermal == PCBA_K19P_MP_INDIA)
+		is_india = true;
+
+	pr_err("thermal_pcba is %d, is_india:%d\n", pcba_to_thermal, is_india);
+
+	if (is_india) {
+		memcpy(thermal_mitigation_dcp, thermal_mitigation_dcp_india, sizeof(thermal_mitigation_dcp));
+		memcpy(thermal_mitigation_qc2, thermal_mitigation_qc2_india, sizeof(thermal_mitigation_qc2));
+	}
+}
+/* BSP.Charger - 2021.01.11 - get pcba version and load curret limit - end */
 
 bool mtk_is_TA_support_pd_pps(struct charger_manager *pinfo)
 {
@@ -223,7 +289,7 @@ void _wake_up_charger(struct charger_manager *info)
 		__pm_stay_awake(&info->charger_wakelock);
 	spin_unlock_irqrestore(&info->slock, flags);
 	info->charger_thread_timeout = true;
-	wake_up_interruptible(&info->wait_que);
+	wake_up(&info->wait_que);
 }
 
 /* charger_manager ops  */
@@ -596,6 +662,94 @@ int charger_manager_enable_chg_type_det(struct charger_consumer *consumer,
 	return 0;
 }
 
+/* BSP.Charger - 2020.11.13 - Add input suspend interface - start */
+int charger_manager_set_input_suspend(bool suspend)
+{
+	pr_info("%s suspend: %d.\n", __func__, suspend);
+
+	if (pinfo == NULL)
+		return -ENOTSUPP;
+
+	charger_dev_enable_powerpath(pinfo->chg1_dev, !suspend);
+	pinfo->is_input_suspend = suspend;
+
+	/* BSP.Charger - 2021.01.10 - show charge sign according to input_suspend - start */
+	if (suspend)
+		charger_manager_notifier(pinfo, CHARGER_NOTIFY_STOP_CHARGING);
+	else
+		charger_manager_notifier(pinfo, CHARGER_NOTIFY_START_CHARGING);
+	/* BSP.Charger - 2020.01.10 - show charge sign according to input_suspend - end */
+
+	return 0;
+}
+
+int charger_manager_is_input_suspend(void)
+{
+	if (pinfo == NULL)
+		return -ENOTSUPP;
+	return pinfo->is_input_suspend;
+}
+/* BSP.Charger - 2020.11.13 - Add input suspend interface - end */
+
+/* BSP.Charger - 2020.11.27 - add for thermal current limit - start */
+int charger_manager_get_system_temp_level_max(void)
+{
+	return (THERMAL_MAX - 1);
+}
+
+int charger_manager_get_system_temp_level(void)
+{
+	if (pinfo == NULL)
+		return false;
+
+	return pinfo->system_temp_level;
+}
+
+void charger_manager_set_system_temp_level(int temp_level)
+{
+	int thermal_icl_ua = 0;
+
+	if (pinfo == NULL)
+		return ;
+
+	if (temp_level > (THERMAL_MAX - 1))
+		pinfo->system_temp_level = (THERMAL_MAX - 1);
+	else
+		pinfo->system_temp_level = temp_level;
+
+	switch (pinfo->chr_type) {
+	#ifdef CONFIG_MTK_SOFT_HVDCP_2
+	case HVDCP_CHARGER:
+		thermal_icl_ua = thermal_mitigation_qc2[pinfo->system_temp_level];
+		break;
+	#endif
+	/* We use soft HVDCP2 solution, no need HVDCP3 */
+	/*
+	 * case HVDCP_CHARGER:
+	 *	thermal_icl_ua = thermal_mitigation_qc3[pinfo->system_temp_level];
+	 *	break;
+	*/
+	case STANDARD_CHARGER:
+		thermal_icl_ua = thermal_mitigation_dcp[pinfo->system_temp_level];
+		break;
+	default:
+		thermal_icl_ua = thermal_mitigation_dcp[pinfo->system_temp_level];
+		break;
+	}
+
+	if (pinfo->system_temp_level == 0)
+		thermal_icl_ua = -1;
+
+	chr_err("[%s], system_temp_level:%d thermal_icl_ua:%d charger_type:%d\n",
+		__func__, pinfo->system_temp_level, thermal_icl_ua,
+		pinfo->chr_type);
+
+	charger_manager_set_input_current_limit(pinfo->chg1_consumer,
+				MAIN_CHARGER, thermal_icl_ua);
+}
+/* BSP.Charger - 2020.11.27 - add for thermal current limit - end */
+
+
 int register_charger_manager_notifier(struct charger_consumer *consumer,
 	struct notifier_block *nb)
 {
@@ -827,6 +981,25 @@ bool is_typec_adapter(struct charger_manager *info)
 	return false;
 }
 
+/* BSP.Charge - 2020.11.09 - Add ibus(ma) interface - start */
+int charger_get_ibus_ma(void)
+{
+	int ret = 0;
+	int ichr = 0;
+
+	if (pinfo == NULL)
+		return 0;
+	ret = charger_dev_get_ibus(pinfo->chg1_dev, &ichr);
+	if (ret < 0) {
+		chr_err("%s: get ibus failed: %d\n", __func__, ret);
+		return ret;
+	}
+
+	ichr = ichr / 1000;
+	return ichr;
+}
+/* BSP.Charge - 2020.11.09 - Add ibus(ma) interface - end*/
+
 int charger_get_vbus(void)
 {
 	int ret = 0;
@@ -855,18 +1028,26 @@ void sw_jeita_state_machine_init(struct charger_manager *info)
 		sw_jeita = &info->sw_jeita;
 		info->battery_temp = battery_get_bat_temperature();
 
-		if (info->battery_temp >= info->data.temp_t4_thres)
-			sw_jeita->sm = TEMP_ABOVE_T4;
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+		if (info->battery_temp >= info->data.temp_t5_thres)
+			sw_jeita->sm = TEMP_ABOVE_T5;
+		else if (info->battery_temp >= info->data.temp_t4_thres)
+			sw_jeita->sm = TEMP_T4_TO_T5;
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 		else if (info->battery_temp > info->data.temp_t3_thres)
 			sw_jeita->sm = TEMP_T3_TO_T4;
-		else if (info->battery_temp >= info->data.temp_t2_thres)
+		else if (info->battery_temp > info->data.temp_t2_thres)
 			sw_jeita->sm = TEMP_T2_TO_T3;
-		else if (info->battery_temp >= info->data.temp_t1_thres)
+		else if (info->battery_temp > info->data.temp_t1_thres)
 			sw_jeita->sm = TEMP_T1_TO_T2;
-		else if (info->battery_temp >= info->data.temp_t0_thres)
+		else if (info->battery_temp > info->data.temp_t0_thres)
 			sw_jeita->sm = TEMP_T0_TO_T1;
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+		else if (info->battery_temp > info->data.temp_neg_10_thres)
+			sw_jeita->sm = TEMP_NEG_10_TO_T0;
 		else
-			sw_jeita->sm = TEMP_BELOW_T0;
+			sw_jeita->sm = TEMP_BELOW_NEG_10;
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 
 		chr_err("[SW_JEITA] tmp:%d sm:%d\n",
 			info->battery_temp, sw_jeita->sm);
@@ -882,113 +1063,76 @@ void do_sw_jeita_state_machine(struct charger_manager *info)
 	sw_jeita->charging = true;
 
 	/* JEITA battery temp Standard */
-	if (info->battery_temp >= info->data.temp_t4_thres) {
+	/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+	if (info->battery_temp >= info->data.temp_t5_thres) {
 		chr_err("[SW_JEITA] Battery Over high Temperature(%d) !!\n",
-			info->data.temp_t4_thres);
-
-		sw_jeita->sm = TEMP_ABOVE_T4;
+			info->data.temp_t5_thres);
+		sw_jeita->sm = TEMP_ABOVE_T5;
 		sw_jeita->charging = false;
+	} else if (info->battery_temp >= info->data.temp_t4_thres) {
+			chr_err("[SW_JEITA] Battery Temperature between %d and %d !!\n",
+				info->data.temp_t4_thres,
+				info->data.temp_t5_thres);
+			sw_jeita->sm = TEMP_T4_TO_T5;
 	} else if (info->battery_temp > info->data.temp_t3_thres) {
-		/* control 45 degree to normal behavior */
-		if ((sw_jeita->sm == TEMP_ABOVE_T4)
-		    && (info->battery_temp
-			>= info->data.temp_t4_thres_minus_x_degree)) {
-			chr_err("[SW_JEITA] Battery Temperature between %d and %d,not allow charging yet!!\n",
-				info->data.temp_t4_thres_minus_x_degree,
-				info->data.temp_t4_thres);
-
-			sw_jeita->charging = false;
-		} else {
+			chr_err("[SW_JEITA] Battery Temperature between %d and %d !!\n",
+				info->data.temp_t4_thres,
+				info->data.temp_t3_thres);
+			sw_jeita->sm = TEMP_T3_TO_T4;
+	} else if (info->battery_temp > info->data.temp_t2_thres) {
 			chr_err("[SW_JEITA] Battery Temperature between %d and %d !!\n",
 				info->data.temp_t3_thres,
-				info->data.temp_t4_thres);
-
-			sw_jeita->sm = TEMP_T3_TO_T4;
-		}
-	} else if (info->battery_temp >= info->data.temp_t2_thres) {
-		if (((sw_jeita->sm == TEMP_T3_TO_T4)
-		     && (info->battery_temp
-			 >= info->data.temp_t3_thres_minus_x_degree))
-		    || ((sw_jeita->sm == TEMP_T1_TO_T2)
-			&& (info->battery_temp
-			    <= info->data.temp_t2_thres_plus_x_degree))) {
-			chr_err("[SW_JEITA] Battery Temperature not recovery to normal temperature charging mode yet!!\n");
-		} else {
-			chr_err("[SW_JEITA] Battery Normal Temperature between %d and %d !!\n",
-				info->data.temp_t2_thres,
-				info->data.temp_t3_thres);
-			sw_jeita->sm = TEMP_T2_TO_T3;
-		}
-	} else if (info->battery_temp >= info->data.temp_t1_thres) {
-		if ((sw_jeita->sm == TEMP_T0_TO_T1
-		     || sw_jeita->sm == TEMP_BELOW_T0)
-		    && (info->battery_temp
-			<= info->data.temp_t1_thres_plus_x_degree)) {
-			if (sw_jeita->sm == TEMP_T0_TO_T1) {
-				chr_err("[SW_JEITA] Battery Temperature between %d and %d !!\n",
-					info->data.temp_t1_thres_plus_x_degree,
-					info->data.temp_t2_thres);
-			}
-			if (sw_jeita->sm == TEMP_BELOW_T0) {
-				chr_err("[SW_JEITA] Battery Temperature between %d and %d,not allow charging yet!!\n",
-					info->data.temp_t1_thres,
-					info->data.temp_t1_thres_plus_x_degree);
-				sw_jeita->charging = false;
-			}
-		} else {
-			chr_err("[SW_JEITA] Battery Temperature between %d and %d !!\n",
-				info->data.temp_t1_thres,
 				info->data.temp_t2_thres);
-
-			sw_jeita->sm = TEMP_T1_TO_T2;
-		}
-	} else if (info->battery_temp >= info->data.temp_t0_thres) {
-		if ((sw_jeita->sm == TEMP_BELOW_T0)
-		    && (info->battery_temp
-			<= info->data.temp_t0_thres_plus_x_degree)) {
-			chr_err("[SW_JEITA] Battery Temperature between %d and %d,not allow charging yet!!\n",
-				info->data.temp_t0_thres,
-				info->data.temp_t0_thres_plus_x_degree);
-
-			sw_jeita->charging = false;
-		} else {
+			sw_jeita->sm = TEMP_T2_TO_T3;
+	} else if (info->battery_temp > info->data.temp_t1_thres) {
 			chr_err("[SW_JEITA] Battery Temperature between %d and %d !!\n",
-				info->data.temp_t0_thres,
+				info->data.temp_t2_thres,
 				info->data.temp_t1_thres);
-
+			sw_jeita->sm = TEMP_T1_TO_T2;
+	} else if (info->battery_temp > info->data.temp_t0_thres) {
+			chr_err("[SW_JEITA] Battery Temperature between %d and %d!!\n",
+				info->data.temp_t1_thres,
+				info->data.temp_t0_thres);
 			sw_jeita->sm = TEMP_T0_TO_T1;
-		}
+	} else if (info->battery_temp > info->data.temp_neg_10_thres) {
+		chr_err("[SW_JEITA] Battery Temperature between %d and %d !!\n",
+			info->data.temp_t0_thres,
+			info->data.temp_neg_10_thres);
+		sw_jeita->sm = TEMP_NEG_10_TO_T0;
 	} else {
 		chr_err("[SW_JEITA] Battery below low Temperature(%d) !!\n",
-			info->data.temp_t0_thres);
-		sw_jeita->sm = TEMP_BELOW_T0;
+			info->data.temp_neg_10_thres);
+		sw_jeita->sm = TEMP_BELOW_NEG_10;
 		sw_jeita->charging = false;
 	}
 
-	/* set CV after temperature changed */
-	/* In normal range, we adjust CV dynamically */
-	if (sw_jeita->sm != TEMP_T2_TO_T3) {
-		if (sw_jeita->sm == TEMP_ABOVE_T4)
-			sw_jeita->cv = info->data.jeita_temp_above_t4_cv;
-		else if (sw_jeita->sm == TEMP_T3_TO_T4)
-			sw_jeita->cv = info->data.jeita_temp_t3_to_t4_cv;
-		else if (sw_jeita->sm == TEMP_T2_TO_T3)
-			sw_jeita->cv = 0;
-		else if (sw_jeita->sm == TEMP_T1_TO_T2)
-			sw_jeita->cv = info->data.jeita_temp_t1_to_t2_cv;
-		else if (sw_jeita->sm == TEMP_T0_TO_T1)
-			sw_jeita->cv = info->data.jeita_temp_t0_to_t1_cv;
-		else if (sw_jeita->sm == TEMP_BELOW_T0)
-			sw_jeita->cv = info->data.jeita_temp_below_t0_cv;
-		else
-			sw_jeita->cv = info->data.battery_cv;
-	} else {
-		sw_jeita->cv = 0;
-	}
+	if (sw_jeita->sm == TEMP_ABOVE_T5)
+		sw_jeita->cv = info->data.jeita_temp_above_t5_cv;
+	else if (sw_jeita->sm == TEMP_T4_TO_T5) {
+		sw_jeita->cv = info->data.jeita_temp_t4_to_t5_cv;
+		sw_jeita->cc = info->data.jeita_temp_t4_to_t5_cc;
+	} else if (sw_jeita->sm == TEMP_T3_TO_T4) {
+		sw_jeita->cv = info->data.jeita_temp_t3_to_t4_cv;
+		sw_jeita->cc = info->data.jeita_temp_t3_to_t4_cc;
+	} else if (sw_jeita->sm == TEMP_T2_TO_T3) {
+		sw_jeita->cv = info->data.jeita_temp_t2_to_t3_cv;
+		sw_jeita->cc = info->data.jeita_temp_t2_to_t3_cc;
+	} else if (sw_jeita->sm == TEMP_T1_TO_T2) {
+		sw_jeita->cv = info->data.jeita_temp_t1_to_t2_cv;
+		sw_jeita->cc = info->data.jeita_temp_t1_to_t2_cc;
+	} else if (sw_jeita->sm == TEMP_T0_TO_T1) {
+		sw_jeita->cv = info->data.jeita_temp_t0_to_t1_cv;
+		sw_jeita->cc = info->data.jeita_temp_t0_to_t1_cc;
+	} else if (sw_jeita->sm == TEMP_NEG_10_TO_T0) {
+		sw_jeita->cv = info->data.jeita_temp_below_t0_cv;
+		sw_jeita->cc = info->data.jeita_temp_below_t0_cc;
+	} else
+		sw_jeita->cv = info->data.battery_cv;
 
-	chr_err("[SW_JEITA]preState:%d newState:%d tmp:%d cv:%d\n",
+	chr_err("[SW_JEITA]preState:%d newState:%d tmp:%d cv:%d cc:%d\n",
 		sw_jeita->pre_sm, sw_jeita->sm, info->battery_temp,
-		sw_jeita->cv);
+		sw_jeita->cv, sw_jeita->cc);
+	/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 }
 
 static ssize_t show_sw_jeita(struct device *dev, struct device_attribute *attr,
@@ -1814,15 +1958,10 @@ static int charger_routine_thread(void *arg)
 	unsigned long flags = 0;
 	bool is_charger_on = false;
 	int bat_current = 0, chg_current = 0;
-	int ret;
 
 	while (1) {
-		ret = wait_event_interruptible(info->wait_que,
+		wait_event(info->wait_que,
 			(info->charger_thread_timeout == true));
-		if (ret < 0) {
-			chr_err("%s: wait event been interrupted(%d)\n", __func__, ret);
-			continue;
-		}
 
 		mutex_lock(&info->charger_lock);
 		spin_lock_irqsave(&info->slock, flags);
@@ -1833,13 +1972,13 @@ static int charger_routine_thread(void *arg)
 		info->charger_thread_timeout = false;
 		bat_current = battery_get_bat_current();
 		chg_current = pmic_get_charging_current();
-		chr_err("Vbat=%d,Ibat=%d,I=%d,VChr=%d,T=%d,Soc=%d:%d,CT:%d:%d hv:%d pd:%d:%d\n",
+		chr_err("Vbat=%d,Ibat=%d,I=%d,VChr=%d,T=%d,Soc=%d:%d,CT:%d:%d hv:%d pd:%d:%d, suspend:%d\n",
 			battery_get_bat_voltage(), bat_current, chg_current,
 			battery_get_vbus(), battery_get_bat_temperature(),
 			battery_get_soc(), battery_get_uisoc(),
 			mt_get_charger_type(), info->chr_type,
 			info->enable_hv_charging, info->pd_type,
-			info->pd_reset);
+			info->pd_reset, charger_manager_is_input_suspend());
 
 		is_charger_on = mtk_is_charger_on(info);
 
@@ -1918,6 +2057,32 @@ static int mtk_charger_parse_dt(struct charger_manager *info,
 	info->disable_pd_dual = of_property_read_bool(np, "disable_pd_dual");
 
 	info->enable_hv_charging = true;
+
+	/* BSP.Charge - 2021.01.11 - add ffc  parameters - start */
+	info->enable_sw_ffc =  of_property_read_bool(np, "enable_sw_ffc");
+
+	if (of_property_read_u32(np, "ffc_cv_1", &val) >= 0)
+		info->ffc_cv_1 = val;
+	if (of_property_read_u32(np, "ffc_cv_2", &val) >= 0)
+		info->ffc_cv_2 = val;
+	if (of_property_read_u32(np, "ffc_cv_3", &val) >= 0)
+		info->ffc_cv_3 = val;
+	if (of_property_read_u32(np, "ffc_cv_4", &val) >= 0)
+		info->ffc_cv_4 = val;
+
+	if (of_property_read_u32(np, "chg_cycle_count_level1", &val) >= 0)
+		info->chg_cycle_count_level1 = val;
+	if (of_property_read_u32(np, "chg_cycle_count_level2", &val) >= 0)
+		info->chg_cycle_count_level2 = val;
+	if (of_property_read_u32(np, "chg_cycle_count_level3", &val) >= 0)
+		info->chg_cycle_count_level3 = val;
+	if (of_property_read_u32(np, "chg_cycle_count_level4", &val) >= 0)
+		info->chg_cycle_count_level4 = val;
+	/* BSP.Charge - 2021.01.11 - add ffc  parameters - end */
+
+	/* BSP.Charge - 2021.01.12 - add recharger  uisoc limit */
+	if (of_property_read_u32(np, "recharger_uisoc_limit", &val) >= 0)
+		info->recharger_uisoc_limit = val;
 
 	/* common */
 	if (of_property_read_u32(np, "battery_cv", &val) >= 0)
@@ -2069,13 +2234,23 @@ static int mtk_charger_parse_dt(struct charger_manager *info,
 	}
 
 	/* sw jeita */
-	if (of_property_read_u32(np, "jeita_temp_above_t4_cv", &val) >= 0)
-		info->data.jeita_temp_above_t4_cv = val;
+	/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+	if (of_property_read_u32(np, "jeita_temp_above_t5_cv", &val) >= 0)
+		info->data.jeita_temp_above_t5_cv = val;
 	else {
-		chr_err("use default JEITA_TEMP_ABOVE_T4_CV:%d\n",
-			JEITA_TEMP_ABOVE_T4_CV);
-		info->data.jeita_temp_above_t4_cv = JEITA_TEMP_ABOVE_T4_CV;
+		chr_err("use default JEITA_TEMP_ABOVE_T5_CV:%d\n",
+			JEITA_TEMP_ABOVE_T5_CV);
+		info->data.jeita_temp_above_t5_cv = JEITA_TEMP_ABOVE_T5_CV;
 	}
+
+	if (of_property_read_u32(np, "jeita_temp_t4_to_t5_cv", &val) >= 0)
+		info->data.jeita_temp_t4_to_t5_cv = val;
+	else {
+		chr_err("use default JEITA_TEMP_T4_TO_T5_CV:%d\n",
+			JEITA_TEMP_T4_TO_T5_CV);
+		info->data.jeita_temp_t4_to_t5_cv = JEITA_TEMP_T4_TO_T5_CV;
+	}
+	/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 
 	if (of_property_read_u32(np, "jeita_temp_t3_to_t4_cv", &val) >= 0)
 		info->data.jeita_temp_t3_to_t4_cv = val;
@@ -2116,6 +2291,72 @@ static int mtk_charger_parse_dt(struct charger_manager *info,
 			JEITA_TEMP_BELOW_T0_CV);
 		info->data.jeita_temp_below_t0_cv = JEITA_TEMP_BELOW_T0_CV;
 	}
+	/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+	if (of_property_read_u32(np, "jeita_temp_t4_to_t5_cc", &val) >= 0)
+		info->data.jeita_temp_t4_to_t5_cc = val;
+	else {
+		chr_err("use default JEITA_TEMP_T4_TO_T5_CC:%d\n",
+			JEITA_TEMP_T4_TO_T5_CC);
+		info->data.jeita_temp_t4_to_t5_cc = JEITA_TEMP_T4_TO_T5_CC;
+	}
+
+	if (of_property_read_u32(np, "jeita_temp_t3_to_t4_cc", &val) >= 0)
+		info->data.jeita_temp_t3_to_t4_cc = val;
+	else {
+		chr_err("use default JEITA_TEMP_T3_TO_T4_CC:%d\n",
+			JEITA_TEMP_T3_TO_T4_CC);
+		info->data.jeita_temp_t3_to_t4_cc = JEITA_TEMP_T3_TO_T4_CC;
+	}
+
+	if (of_property_read_u32(np, "jeita_temp_t2_to_t3_cc", &val) >= 0)
+		info->data.jeita_temp_t2_to_t3_cc = val;
+	else {
+		chr_err("use default JEITA_TEMP_T2_TO_T3_CC:%d\n",
+			JEITA_TEMP_T2_TO_T3_CC);
+		info->data.jeita_temp_t2_to_t3_cc = JEITA_TEMP_T2_TO_T3_CC;
+	}
+
+	if (of_property_read_u32(np, "jeita_temp_t1_to_t2_cc", &val) >= 0)
+		info->data.jeita_temp_t1_to_t2_cc = val;
+	else {
+		chr_err("use default JEITA_TEMP_T1_TO_T2_CC:%d\n",
+			JEITA_TEMP_T1_TO_T2_CC);
+		info->data.jeita_temp_t1_to_t2_cc = JEITA_TEMP_T1_TO_T2_CC;
+	}
+
+	if (of_property_read_u32(np, "jeita_temp_t0_to_t1_cc", &val) >= 0)
+		info->data.jeita_temp_t0_to_t1_cc = val;
+	else {
+		chr_err("use default JEITA_TEMP_T0_TO_T1_CC:%d\n",
+			JEITA_TEMP_T0_TO_T1_CC);
+		info->data.jeita_temp_t0_to_t1_cc = JEITA_TEMP_T0_TO_T1_CC;
+	}
+
+	if (of_property_read_u32(np, "jeita_temp_below_t0_cc", &val) >= 0)
+		info->data.jeita_temp_below_t0_cc = val;
+	else {
+		chr_err("use default JEITA_TEMP_BELOW_T0_CC:%d\n",
+			JEITA_TEMP_BELOW_T0_CC);
+		info->data.jeita_temp_below_t0_cc = JEITA_TEMP_BELOW_T0_CC;
+	}
+
+	if (of_property_read_u32(np, "temp_t5_thres", &val) >= 0)
+		info->data.temp_t5_thres = val;
+	else {
+		chr_err("use default TEMP_T5_THRES:%d\n",
+			TEMP_T5_THRES);
+		info->data.temp_t5_thres = TEMP_T5_THRES;
+	}
+
+	if (of_property_read_u32(np, "temp_t5_thres_minus_x_degree", &val) >= 0)
+		info->data.temp_t5_thres_minus_x_degree = val;
+	else {
+		chr_err("use default TEMP_T5_THRES_MINUS_X_DEGREE:%d\n",
+			TEMP_T5_THRES_MINUS_X_DEGREE);
+		info->data.temp_t5_thres_minus_x_degree = TEMP_T5_THRES_MINUS_X_DEGREE;
+	}
+	/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
+
 
 	if (of_property_read_u32(np, "temp_t4_thres", &val) >= 0)
 		info->data.temp_t4_thres = val;
@@ -2203,7 +2444,8 @@ static int mtk_charger_parse_dt(struct charger_manager *info,
 	}
 
 	if (of_property_read_u32(np, "temp_neg_10_thres", &val) >= 0)
-		info->data.temp_neg_10_thres = val;
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard */
+		info->data.temp_neg_10_thres = 0 - val;
 	else {
 		chr_err("use default TEMP_NEG_10_THRES:%d\n",
 			TEMP_NEG_10_THRES);
@@ -2216,7 +2458,8 @@ static int mtk_charger_parse_dt(struct charger_manager *info,
 		of_property_read_bool(np, "enable_min_charge_temp");
 
 	if (of_property_read_u32(np, "min_charge_temp", &val) >= 0)
-		info->thermal.min_charge_temp = val;
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard */
+		info->thermal.min_charge_temp = 0 - val;
 	else {
 		chr_err("use default MIN_CHARGE_TEMP:%d\n",
 			MIN_CHARGE_TEMP);
@@ -3685,6 +3928,8 @@ static int mtk_charger_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 	info->pdev = pdev;
 	mtk_charger_parse_dt(info, &pdev->dev);
+	/* BSP.Charger - 2021.01.11 - get pcba version and load curret limit */
+	hqsys_pcba_set_thermal_current_limit();
 
 	mutex_init(&info->charger_lock);
 	mutex_init(&info->charger_pd_lock);

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -616,19 +617,23 @@ int mtk_switch_chr_err(struct charger_manager *info)
 	struct switch_charging_alg_data *swchgalg = info->algorithm_data;
 
 	if (info->enable_sw_jeita) {
-		if ((info->sw_jeita.sm == TEMP_BELOW_T0) ||
-			(info->sw_jeita.sm == TEMP_ABOVE_T4))
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+		if ((info->sw_jeita.sm == TEMP_NEG_10_TO_T0) ||
+			(info->sw_jeita.sm == TEMP_ABOVE_T5))
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 			info->sw_jeita.error_recovery_flag = false;
 
 		if ((info->sw_jeita.error_recovery_flag == false) &&
-			(info->sw_jeita.sm != TEMP_BELOW_T0) &&
-			(info->sw_jeita.sm != TEMP_ABOVE_T4)) {
+			/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+			(info->sw_jeita.sm != TEMP_NEG_10_TO_T0) &&
+			(info->sw_jeita.sm != TEMP_ABOVE_T5)) {
+			/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 			info->sw_jeita.error_recovery_flag = true;
 			swchgalg->state = CHR_CC;
 			get_monotonic_boottime(&swchgalg->charging_begin_time);
 		}
 	}
-
+/* BSP.Charge - 2020.12.02 - Eanble sw_jeita end*/
 	swchgalg->total_charging_time = 0;
 
 	_disable_all_charging(info);

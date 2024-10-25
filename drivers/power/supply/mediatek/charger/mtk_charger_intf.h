@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -117,30 +118,36 @@ enum {
 	CHARGER_DEV_NOTIFY_VDROVP,
 };
 
+/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
 /*
  * Software JEITA
- * T0: -10 degree Celsius
- * T1: 0 degree Celsius
+ * T0: 0 degree Celsius
+ * T1: 5 degree Celsius
  * T2: 10 degree Celsius
- * T3: 45 degree Celsius
- * T4: 50 degree Celsius
+ * T3: 15 degree Celsius
+ * T4: 48 degree Celsius
+ * T5: 58 degree Celsius
  */
 enum sw_jeita_state_enum {
-	TEMP_BELOW_T0 = 0,
+	TEMP_BELOW_NEG_10 = 0,
+	TEMP_NEG_10_TO_T0,
 	TEMP_T0_TO_T1,
 	TEMP_T1_TO_T2,
 	TEMP_T2_TO_T3,
 	TEMP_T3_TO_T4,
-	TEMP_ABOVE_T4
+	TEMP_T4_TO_T5,
+	TEMP_ABOVE_T5,
 };
 
 struct sw_jeita_data {
 	int sm;
 	int pre_sm;
 	int cv;
+	int cc;
 	bool charging;
 	bool error_recovery_flag;
 };
+/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 
 /* battery thermal protection */
 enum bat_temp_state_enum {
@@ -183,12 +190,22 @@ struct charger_custom_data {
 	int max_dmivr_charger_current;
 
 	/* sw jeita */
-	int jeita_temp_above_t4_cv;
+	/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+	int jeita_temp_above_t5_cv;
+	int jeita_temp_t4_to_t5_cv;
 	int jeita_temp_t3_to_t4_cv;
 	int jeita_temp_t2_to_t3_cv;
 	int jeita_temp_t1_to_t2_cv;
 	int jeita_temp_t0_to_t1_cv;
 	int jeita_temp_below_t0_cv;
+	int jeita_temp_t4_to_t5_cc;
+	int jeita_temp_t3_to_t4_cc;
+	int jeita_temp_t2_to_t3_cc;
+	int jeita_temp_t1_to_t2_cc;
+	int jeita_temp_t0_to_t1_cc;
+	int jeita_temp_below_t0_cc;
+	int temp_t5_thres;
+	int temp_t5_thres_minus_x_degree;
 	int temp_t4_thres;
 	int temp_t4_thres_minus_x_degree;
 	int temp_t3_thres;
@@ -200,6 +217,7 @@ struct charger_custom_data {
 	int temp_t0_thres;
 	int temp_t0_thres_plus_x_degree;
 	int temp_neg_10_thres;
+	/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 
 	/* battery temperature protection */
 	int mtk_temperature_recharge_support;
@@ -430,6 +448,24 @@ struct charger_manager {
 	u_int g_scd_pid;
 	struct scd_cmd_param_t_1 sc_data;
 
+	/* BSP.Charger - 2020.11.27 - add custormer info - start */
+	bool is_input_suspend;
+	int system_temp_level;
+	/* BSP.Charger - 2020.11.27 - add custormer info - end */
+
+	/* BSP.Charge - 2021.01.11 - add ffc  parameters - start */
+	bool enable_sw_ffc;
+	int ffc_cv_1;
+	int ffc_cv_2;
+	int ffc_cv_3;
+	int ffc_cv_4;
+	int chg_cycle_count_level1;
+	int chg_cycle_count_level2;
+	int chg_cycle_count_level3;
+	int chg_cycle_count_level4;
+	/* BSP.Charge - 2021.01.11 - add ffc  parameters - end */
+	/* BSP.Charge - 2021.01.12 - under this uisoc then turn on recharger */
+	int recharger_uisoc_limit;
 };
 
 /* charger related module interface */

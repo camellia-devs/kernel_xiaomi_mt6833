@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -619,8 +620,13 @@ int charger_dev_enable_chg_type_det(struct charger_device *chg_dev, bool en)
 }
 EXPORT_SYMBOL(charger_dev_enable_chg_type_det);
 
+/* BSP.Charger - 2020.11.11 - add usb_otg node */
+bool usb_otg;
 int charger_dev_enable_otg(struct charger_device *chg_dev, bool en)
 {
+/* BSP.Charger - 2020.11.11 - add usb_otg node */
+	usb_otg = en;
+	pr_err("%s:usb_otg = %d\n", __func__, usb_otg);
 	if (chg_dev != NULL && chg_dev->ops != NULL && chg_dev->ops->enable_otg)
 		return chg_dev->ops->enable_otg(chg_dev, en);
 

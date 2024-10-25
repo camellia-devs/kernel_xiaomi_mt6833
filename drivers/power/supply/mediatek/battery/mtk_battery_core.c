@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -80,6 +81,10 @@
 #include <mtk_battery_table.h>
 #include "simulator_kernel.h"
 #endif
+/* BSP.Charger - 2020.11.09 - enable battery id adc channel - start */
+#include <linux/of_platform.h>
+#include <linux/iio/consumer.h>
+/* BSP.Charger - 2020.11.09 - enable battery id adc channel - end */
 
 
 
@@ -400,25 +405,30 @@ void fgauge_get_profile_id(void)
 	id_volt = auxadc_voltage * 1500 / 4096;
 	bm_err("[%s]battery_id_voltage is %d\n", __func__, id_volt);
 
+	/* BSP.Charge - 2020.11.09 - Add battery node */
+	gm.battery_id_voltage = id_volt;
+
+	/* BSP.Charge - 2020.11.09 - Using high and low threshold */
 	if ((sizeof(g_battery_id_voltage) /
-		sizeof(int)) != TOTAL_BATTERY_NUMBER) {
-		bm_debug("[%s]error! voltage range incorrect!\n",
+		sizeof(int)) != (2 * TOTAL_BATTERY_NUMBER)) {
+		bm_err("[%s]error! voltage range incorrect!\n",
 			__func__);
 		return;
 	}
 
+	/* BSP.Charge - 2020.11.09 - Using high and low threshold */
+	gm.battery_id = TOTAL_BATTERY_NUMBER - 1;
 	for (id = 0; id < TOTAL_BATTERY_NUMBER; id++) {
-		if (id_volt < g_battery_id_voltage[id]) {
+		if (id_volt >= g_battery_id_voltage[id][0] &&
+			id_volt < g_battery_id_voltage[id][1]) {
 			gm.battery_id = id;
 			break;
-		} else if (g_battery_id_voltage[id] == -1) {
-			gm.battery_id = TOTAL_BATTERY_NUMBER - 1;
 		}
 	}
 
-	bm_debug("[%s]Battery id (%d)\n",
+	bm_err("[%s]Battery id (%d), Battery id voltage (%d)\n",
 		__func__,
-		gm.battery_id);
+		gm.battery_id, gm.battery_id_voltage);
 }
 #elif defined(MTK_GET_BATTERY_ID_BY_GPIO)
 void fgauge_get_profile_id(void)
@@ -2402,10 +2412,9 @@ void fg_drv_update_hw_status(void)
 
 int battery_update_routine(void *x)
 {
-	int ret = 0;
 	battery_update_psd(&battery_main);
 	while (1) {
-		ret = wait_event_interruptible(gm.wait_que,
+		wait_event(gm.wait_que,
 			(gm.fg_update_flag > 0)
 			|| (gm.tracking_cb_flag > 0)
 			|| (gm.onepercent_cb_flag > 0));

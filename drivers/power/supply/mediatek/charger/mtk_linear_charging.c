@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2019 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -338,13 +339,17 @@ static int mtk_linear_chr_err(struct charger_manager *info)
 	struct linear_charging_alg_data *algo_data = info->algorithm_data;
 
 	if (info->enable_sw_jeita) {
-		if ((info->sw_jeita.sm == TEMP_BELOW_T0) ||
-			(info->sw_jeita.sm == TEMP_ABOVE_T4))
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+		if ((info->sw_jeita.sm == TEMP_NEG_10_TO_T0) ||
+			(info->sw_jeita.sm == TEMP_ABOVE_T5))
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 			info->sw_jeita.error_recovery_flag = false;
 
 		if ((info->sw_jeita.error_recovery_flag == false) &&
-			(info->sw_jeita.sm != TEMP_BELOW_T0) &&
-			(info->sw_jeita.sm != TEMP_ABOVE_T4)) {
+			/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+			(info->sw_jeita.sm != TEMP_NEG_10_TO_T0) &&
+			(info->sw_jeita.sm != TEMP_ABOVE_T5)) {
+			/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 			info->sw_jeita.error_recovery_flag = true;
 			algo_data->state = CHR_CC;
 			get_monotonic_boottime(&algo_data->charging_begin_time);

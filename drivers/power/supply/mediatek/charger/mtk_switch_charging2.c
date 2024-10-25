@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -107,6 +108,10 @@ static void swchg_select_charging_current_limit(struct charger_manager *info)
 	u32 ichg1_min = 0, aicr1_min = 0;
 	int ret = 0;
 
+	/* BSP.Charge - 2020.11.06 - Add node to limit current start*/
+	struct power_supply *psy;
+	union power_supply_propval val;
+	/* BSP.Charge - 2020.11.06 - Add node to limit current end */
 	if (info->pe5.online) {
 		chr_err("In PE5.0\n");
 		return;
@@ -161,10 +166,12 @@ static void swchg_select_charging_current_limit(struct charger_manager *info)
 		pdata->input_current_limit = 200000; /* 200mA */
 		goto done;
 	}
-
-	if (info->atm_enabled == true && (info->chr_type == STANDARD_HOST ||
-	    info->chr_type == CHARGING_HOST)) {
-		pdata->input_current_limit = 100000; /* 100mA */
+	/* BSP.Charge - 2020.1.19 - fix mtbf low battery power off */
+	if (info->atm_enabled == true && (info->chr_type == STANDARD_HOST)) {
+		/* BSP.Charge - 2020.12.24 - Fixed icl and ichg in atm_mode - start */
+		pdata->input_current_limit = 500000; /* 500mA */
+		pdata->charging_current_limit = 500000; /* 500mA */
+		/* BSP.Charge - 2020.12.24 - Fixed icl and ichg in atm_mode - end */
 		goto done;
 	}
 
@@ -242,34 +249,49 @@ static void swchg_select_charging_current_limit(struct charger_manager *info)
 				info->data.apple_2_1a_charger_current;
 		pdata->charging_current_limit =
 				info->data.apple_2_1a_charger_current;
+	/* BSP.Charge - 2020.11.14 - enable 18W charging start */
+#ifdef CONFIG_MTK_SOFT_HVDCP_2
+	} else if (info->chr_type == CHECK_HV) {
+		pdata->input_current_limit =
+				info->data.ac_charger_current;
+		pdata->charging_current_limit =
+				info->data.ac_charger_current;
+	} else if (info->chr_type == HVDCP_CHARGER) {
+		pdata->input_current_limit =
+				info->data.ac_charger_current;
+	/* BSP.Charge - 2020.12.07 - modify 18w-charging current */
+		pdata->charging_current_limit =
+				info->sw_jeita.cc;
+	} else if (info->chr_type == CHARGER_UNKNOWN) {
+		pdata->input_current_limit = 0;
+		pdata->charging_current_limit = 0;
+#endif
+	/* BSP.Charge - 2020.11.14 - enable 18W charging end */
 	}
 
+	/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
 	if (info->enable_sw_jeita) {
-		if (IS_ENABLED(CONFIG_USBIF_COMPLIANCE)
-		    && info->chr_type == STANDARD_HOST)
-			chr_err("USBIF & STAND_HOST skip current check\n");
-		else {
-			if (info->sw_jeita.sm == TEMP_T0_TO_T1) {
-				pdata->input_current_limit = 500000;
-				pdata->charging_current_limit = 350000;
-			}
-		}
+		if (pdata->charging_current_limit > info->sw_jeita.cc)
+			pdata->charging_current_limit = info->sw_jeita.cc;
 	}
+	pr_info("charging_current_limit: %d, sw_jeita.cc: %d\n",
+		pdata->charging_current_limit, info->sw_jeita.cc);
+	/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 
 	sc_select_charging_current(info, pdata);
 
 	if (pdata->thermal_input_current_limit != -1) {
 		if (pdata->thermal_input_current_limit <
-		    pdata->input_current_limit)
+			pdata->input_current_limit)
 			pdata->input_current_limit =
 					pdata->thermal_input_current_limit;
 	}
 
 	if (pdata->input_current_limit_by_aicl != -1 &&
-	    !mtk_pe20_get_is_connect(info) && !mtk_pe_get_is_connect(info) &&
-	    !mtk_is_TA_support_pd_pps(info)) {
+		!mtk_pe20_get_is_connect(info) && !mtk_pe_get_is_connect(info) &&
+		!mtk_is_TA_support_pd_pps(info)) {
 		if (pdata->input_current_limit_by_aicl <
-		    pdata->input_current_limit)
+			pdata->input_current_limit)
 			pdata->input_current_limit =
 					pdata->input_current_limit_by_aicl;
 	}
@@ -282,6 +304,21 @@ done:
 	if (ret != -ENOTSUPP && pdata->input_current_limit < aicr1_min)
 		pdata->input_current_limit = 0;
 
+	/* BSP.Charge - 2020.11.06 - Add node to limit current start*/
+	psy = power_supply_get_by_name("charger");
+	if (!psy) {
+		pr_err("%s : power_supply_get_by_name error!\n", __func__);
+		return;
+	}
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX, &val);
+	if (ret) {
+		pr_err("%s : power_supply_get_property error!\n", __func__);
+		return;
+	}
+	if ((val.intval > 0) && (pdata->input_current_limit > val.intval * 1000))
+		pdata->input_current_limit = val.intval * 1000;
+	/* BSP.Charge - 2020.11.06 - Add node to limit current end */
 	chr_err("force:%d thermal:%d,%d pe4:%d,%d,%d setting:%d %d sc:%d,%d,%d type:%d usb_unlimited:%d usbif:%d usbsm:%d aicl:%d atm:%d\n",
 		_uA_to_mA(pdata->force_charging_current),
 		_uA_to_mA(pdata->thermal_input_current_limit),
@@ -328,16 +365,70 @@ done:
 	mutex_unlock(&swchgalg->ichg_aicr_access_mutex);
 }
 
+/* BSP.Charge - 2021.01.05 - add get charge cycle count and set cv - start */
+static u32 get_charge_cycle_count_level(struct charger_manager *info)
+{
+	struct power_supply *psy;
+	union power_supply_propval val;
+	int  ret;
+	u32 ffc_constant_voltage = 0;
+
+	psy = power_supply_get_by_name("battery");
+	if (!psy) {
+		pr_err("%s : power_supply_get_by_name error!\n", __func__);
+	}
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CYCLE_COUNT, &val);
+	if (ret) {
+		pr_err("%s : power_supply_get_property error!\n", __func__);
+	}
+
+	pr_err("%s : charger cycle count  = %d\n", __func__, val.intval);
+
+	if ((val.intval >= info->chg_cycle_count_level1) && (val.intval <= (info->chg_cycle_count_level2 - 1)))
+		ffc_constant_voltage = info->ffc_cv_1;
+
+	if ((val.intval > info->chg_cycle_count_level2) && (val.intval <= (info->chg_cycle_count_level3 - 1)))
+		ffc_constant_voltage = info->ffc_cv_2;
+
+	if ((val.intval > info->chg_cycle_count_level3) && (val.intval <= (info->chg_cycle_count_level4 - 1)))
+		ffc_constant_voltage = info->ffc_cv_3;
+
+	if (val.intval >= info->chg_cycle_count_level4)
+		ffc_constant_voltage = info->ffc_cv_4;
+
+	return  ffc_constant_voltage;
+}
+/* BSP.Charge - 2021.01.05 - add get charge cycle count and set cv - end */
+
 static void swchg_select_cv(struct charger_manager *info)
 {
 	u32 constant_voltage;
+	/* BSP.Charge - 2021.01.05 -  get ffc's cv  and set cv - start*/
+	u32 ffc_constant_voltage = 0;
 
-	if (info->enable_sw_jeita)
+	if (info->enable_sw_ffc) {
+		ffc_constant_voltage = get_charge_cycle_count_level(info);
+		if (ffc_constant_voltage != 0) {
+			if (info->enable_sw_jeita && (info->sw_jeita.cv != 0)) {
+				constant_voltage = (ffc_constant_voltage < info->sw_jeita.cv)
+							? ffc_constant_voltage : info->sw_jeita.cv;
+			}
+			chr_err("%s, ffc_constant_voltage  = %d\n", __func__, constant_voltage);
+			charger_dev_set_constant_voltage(info->chg1_dev, constant_voltage);
+			return;
+		}
+	}
+	/* BSP.Charge - 2021.01.05 -  get ffc's cv  and set cv - end*/
+
+	if (info->enable_sw_jeita) {
 		if (info->sw_jeita.cv != 0) {
+			chr_err("%s, info->sw_jeita.cv  = %d\n", __func__, info->sw_jeita.cv);
 			charger_dev_set_constant_voltage(info->chg1_dev,
 							info->sw_jeita.cv);
 			return;
 		}
+	}
 
 	/* dynamic cv*/
 	constant_voltage = info->data.battery_cv;
@@ -634,12 +725,29 @@ static int select_pdc_charging_current_limit(struct charger_manager *info)
 	int ret = 0;
 
 	pdata = &info->chg1_data;
-
+	/* BSP.Charge - 2020.11.14 - enable 18W charging start */
+#ifdef CONFIG_MTK_SOFT_HVDCP_2
+	if ((info->chr_type == HVDCP_CHARGER)
+			|| (info->chr_type == CHECK_HV)
+			|| (info->chr_type == STANDARD_CHARGER)) {
+		pdata->input_current_limit =
+			info->data.pd_charger_current;
+		pdata->charging_current_limit =
+			info->data.pd_charger_current;
+	} else if (info->chr_type == STANDARD_HOST) {
+		pdata->input_current_limit = 1500000;
+		pdata->charging_current_limit = 1500000;
+	} else {
+		pdata->input_current_limit = 0;
+		pdata->charging_current_limit = 0;
+	}
+#else
 	pdata->input_current_limit =
 		info->data.pd_charger_current;
 	pdata->charging_current_limit =
 		info->data.pd_charger_current;
-
+#endif
+	/* BSP.Charge - 2020.11.14 - enable 18W charging end */
 	sc_select_charging_current(info, pdata);
 
 	if (pdata->thermal_input_current_limit != -1) {
@@ -744,6 +852,57 @@ static bool mtk_switch_check_charging_time(struct charger_manager *info)
 	return true;
 }
 
+/* BSP.Charge - 2021.01.05 - judge whether to recharge - start */
+static int judge_recharge_status(struct charger_manager *info)
+{
+	bool chg_done = false;
+	unsigned int battery_uisoc = 0;
+	long int battery_volt = 0;
+	int battery_health = 0;
+	int ret;
+
+	struct power_supply *psy;
+	union power_supply_propval val;
+
+	psy = power_supply_get_by_name("battery");
+	if (!psy) {
+		pr_err("%s : power_supply_get_by_name error!\n", __func__);
+	}
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_HEALTH, &val);
+	if (ret) {
+		pr_err("%s : power_supply_get_property error!\n", __func__);
+	}
+	battery_health = val.intval;
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW, &val);
+	if (ret) {
+		pr_err("%s : power_supply_get_property error!\n", __func__);
+	}
+	battery_volt = val.intval;
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &val);
+	if (ret) {
+		pr_err("%s : power_supply_get_property error!\n", __func__);
+	}
+	battery_uisoc = val.intval;
+
+	pr_err("%s : battery_health = %d, battery_volt = %d, battery_uisoc = %d, recharger_uisoc_limit = %d\n", __func__,
+						battery_health, battery_volt, battery_uisoc,  info->recharger_uisoc_limit);
+
+	if (battery_health  == POWER_SUPPLY_HEALTH_OVERHEAT) {
+			chr_err("over heat , battery recharging!\n");
+			chg_done = true;
+	} else {
+		if (battery_uisoc < info->recharger_uisoc_limit) {
+			chr_err("not over heat , battery recharging!\n");
+			chg_done = true;
+		}
+	}
+	return chg_done;
+}
+/* BSP.Charge - 2021.01.05 - judge  whether to recharge - end */
+
 static int mtk_switch_chr_cc(struct charger_manager *info)
 {
 	bool chg_done = false;
@@ -764,6 +923,13 @@ static int mtk_switch_chr_cc(struct charger_manager *info)
 	charging_time = timespec_sub(time_now, swchgalg->charging_begin_time);
 
 	swchgalg->total_charging_time = charging_time.tv_sec;
+
+	/* BSP.Charge - 2021.01.22 - avoid charging timeout during MTBF test - start */
+	if (info->is_input_suspend) {
+		chr_err("input_suspend,reset charging_begin_time\n");
+		get_monotonic_boottime(&swchgalg->charging_begin_time);
+	}
+	/* BSP.Charge - 2021.01.22 - avoid charging timeout during MTBF test - end */
 
 	chr_err("pe40_ready:%d pps:%d hv:%d thermal:%d,%d tmp:%d,%d,%d\n",
 		info->enable_pe_4,
@@ -838,13 +1004,17 @@ static int mtk_switch_chr_err(struct charger_manager *info)
 	struct switch_charging_alg_data *swchgalg = info->algorithm_data;
 
 	if (info->enable_sw_jeita) {
-		if ((info->sw_jeita.sm == TEMP_BELOW_T0) ||
-			(info->sw_jeita.sm == TEMP_ABOVE_T4))
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+		if ((info->sw_jeita.sm == TEMP_NEG_10_TO_T0) ||
+			(info->sw_jeita.sm == TEMP_ABOVE_T5))
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 			info->sw_jeita.error_recovery_flag = false;
 
 		if ((info->sw_jeita.error_recovery_flag == false) &&
-			(info->sw_jeita.sm != TEMP_BELOW_T0) &&
-			(info->sw_jeita.sm != TEMP_ABOVE_T4)) {
+			/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+			(info->sw_jeita.sm != TEMP_NEG_10_TO_T0) &&
+			(info->sw_jeita.sm != TEMP_ABOVE_T5)) {
+			/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 			info->sw_jeita.error_recovery_flag = true;
 			swchgalg->state = CHR_CC;
 			get_monotonic_boottime(&swchgalg->charging_begin_time);
@@ -860,6 +1030,8 @@ static int mtk_switch_chr_err(struct charger_manager *info)
 static int mtk_switch_chr_full(struct charger_manager *info)
 {
 	bool chg_done = false;
+	/* BSP.Charge - 2021.01.05 - judge whether to recharge */
+	bool recharge_flag = false;
 	struct switch_charging_alg_data *swchgalg = info->algorithm_data;
 
 	swchgalg->total_charging_time = 0;
@@ -873,7 +1045,11 @@ static int mtk_switch_chr_full(struct charger_manager *info)
 	swchg_select_cv(info);
 	info->polling_interval = CHARGING_FULL_INTERVAL;
 	charger_dev_is_charging_done(info->chg1_dev, &chg_done);
-	if (!chg_done) {
+	/* BSP.Charge - 2021.01.05 - judge whether to recharge - start */
+	recharge_flag = judge_recharge_status(info);
+	chr_err("chg_done = %d, recharge_flag = %d\n", chg_done, recharge_flag);
+	if ((!chg_done) && recharge_flag) {
+	/* BSP.Charge - 2021.01.05 - judge whether to recharge - end */
 		swchgalg->state = CHR_CC;
 		charger_dev_do_event(info->chg1_dev, EVENT_RECHARGE, 0);
 		mtk_pe20_set_to_check_chr_type(info, true);
