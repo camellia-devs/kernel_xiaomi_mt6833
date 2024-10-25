@@ -472,14 +472,14 @@ int mdw_sched(struct mdw_apu_sc *sc)
 	return 0;
 }
 
-int mdw_sched_pause(void)
+void mdw_sched_pause(void)
 {
 	struct mdw_dev_info *d = NULL;
 	int type = 0, idx = 0, ret = 0, i = 0;
 
 	if (ms_mgr.pause == true) {
 		mdw_drv_warn("pause ready\n");
-		return 0;
+		return;
 	}
 
 	ms_mgr.pause = true;
@@ -499,33 +499,24 @@ int mdw_sched_pause(void)
 	}
 
 	mdw_drv_info("pause\n");
-	goto out;
+	return;
 
 fail_sched_pause:
-	for (idx -= 1; idx >= 0; idx--) {
-		d = mdw_rsc_get_dinfo(type, idx);
-		if (d->resume(d)) {
-			mdw_drv_err("dev(%s%d) resume fail(%d)\n",
-				d->name, d->idx, ret);
-		}
-	}
-
-	for (i = 0; i < type; i++) {
+	for (i = 0; i <= type; i++) {
 		for (idx = 0; idx < mdw_rsc_get_dev_num(type); idx++) {
 			d = mdw_rsc_get_dinfo(type, idx);
 			if (!d)
 				continue;
-			if (d->resume(d)) {
+			ret = d->resume(d);
+			if (ret) {
 				mdw_drv_err("dev(%s%d) resume fail(%d)\n",
 					d->name, d->idx, ret);
+				goto fail_sched_pause;
 			}
 		}
 	}
-
 	ms_mgr.pause = false;
 	mdw_drv_warn("resume\n");
-out:
-	return ret;
 }
 
 void mdw_sched_restart(void)
