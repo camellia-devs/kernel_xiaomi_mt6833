@@ -177,12 +177,6 @@ int mtk_ipi_device_register(struct mtk_ipi_device *ipidev,
 			ipidev->name, index);
 		mtk_rpchan = mtk_rpmsg_create_channel(mtk_rpdev, index,
 				chan_name);
-		if (!mtk_rpchan) {
-			pr_err("%s create rpmsg channel %d fail.\n",
-				ipidev->name, index);
-			kfree(mtk_rpdev);
-			return IPI_RPMSG_ERR;
-		}
 		ipi_chan_table[index].rpchan = mtk_rpchan;
 		ipi_chan_table[index].ept =
 			rpmsg_create_ept(&(mtk_rpdev->rpdev),
@@ -411,7 +405,7 @@ int mtk_ipi_recv(struct mtk_ipi_device *ipidev, int ipi_id)
 		return IPI_UNAVAILABLE;
 
 	/* receive the ipi from ISR */
-	wait_for_completion_interruptible(&pin->notify);
+	wait_for_completion(&pin->notify);
 
 	ipi_monitor(ipidev, ipi_id, RECV_MSG);
 	ipidev->ipi_last_done = ipi_id;
@@ -570,7 +564,7 @@ int mtk_ipi_recv_reply(struct mtk_ipi_device *ipidev, int ipi_id,
 		len = pin_s->msg_size;
 
 	/* recvice the IPI message*/
-	wait_for_completion_interruptible(&pin_r->notify);
+	wait_for_completion(&pin_r->notify);
 
 	ipi_monitor(ipidev, ipi_id, RECV_MSG);
 
