@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -448,18 +449,33 @@ void usb_phy_switch_to_usb(void)
 
 void set_usb_phy_mode(int mode)
 {
+/* BSP.charge --2021.01.14-- cc/otg line failed to read auxiliary machine file start */
+	struct device_node *of_node;
+	static s32 u2_vrt_ref, u2_term_ref, u2_enhance;
+
+	of_node = of_find_compatible_node(NULL, NULL, "mediatek,phy_tuning");
 	switch (mode) {
 	case PHY_DEV_ACTIVE:
 	/* VBUSVALID=1, AVALID=1, BVALID=1, SESSEND=0, IDDIG=1, IDPULLUP=1 */
 		USBPHY_CLR32(0x6C, (0x10<<0));
 		USBPHY_SET32(0x6C, (0x2F<<0));
 		USBPHY_SET32(0x6C, (0x3F<<8));
+		if (of_node) {
+			of_property_read_u32(of_node, "u2_vrt_ref_dev", (u32 *) &u2_vrt_ref);
+			of_property_read_u32(of_node, "u2_term_ref_dev", (u32 *) &u2_term_ref);
+			of_property_read_u32(of_node, "u2_enhance_dev", (u32 *) &u2_enhance);
+		}
 		break;
 	case PHY_HOST_ACTIVE:
 	/* VBUSVALID=1, AVALID=1, BVALID=1, SESSEND=0, IDDIG=0, IDPULLUP=1 */
 		USBPHY_CLR32(0x6c, (0x12<<0));
 		USBPHY_SET32(0x6c, (0x2d<<0));
 		USBPHY_SET32(0x6c, (0x3f<<8));
+		if (of_node) {
+			of_property_read_u32(of_node, "u2_vrt_ref_host", (u32 *) &u2_vrt_ref);
+			of_property_read_u32(of_node, "u2_term_ref_host", (u32 *) &u2_term_ref);
+			of_property_read_u32(of_node, "u2_enhance_host", (u32 *) &u2_enhance);
+		}
 		break;
 	case PHY_IDLE_MODE:
 	/* VBUSVALID=0, AVALID=0, BVALID=0, SESSEND=1, IDDIG=0, IDPULLUP=1 */
@@ -470,6 +486,36 @@ void set_usb_phy_mode(int mode)
 	default:
 		DBG(0, "mode error %d\n", mode);
 	}
+
+	if (u2_vrt_ref != -1) {
+		if (u2_vrt_ref <= VAL_MAX_WIDTH_3) {
+			USBPHY_CLR32(OFFSET_RG_USB20_VRT_VREF_SEL,
+				VAL_MAX_WIDTH_3 << SHFT_RG_USB20_VRT_VREF_SEL);
+			USBPHY_SET32(OFFSET_RG_USB20_VRT_VREF_SEL,
+				u2_vrt_ref << SHFT_RG_USB20_VRT_VREF_SEL);
+		}
+	}
+	if (u2_term_ref != -1) {
+		if (u2_term_ref <= VAL_MAX_WIDTH_3) {
+			USBPHY_CLR32(OFFSET_RG_USB20_TERM_VREF_SEL,
+				VAL_MAX_WIDTH_3 << SHFT_RG_USB20_TERM_VREF_SEL);
+			USBPHY_SET32(OFFSET_RG_USB20_TERM_VREF_SEL,
+				u2_term_ref << SHFT_RG_USB20_TERM_VREF_SEL);
+		}
+	}
+	if (u2_enhance != -1) {
+		if (u2_enhance <= VAL_MAX_WIDTH_2) {
+			USBPHY_CLR32(OFFSET_RG_USB20_PHY_REV6,
+				VAL_MAX_WIDTH_2 << SHFT_RG_USB20_PHY_REV6);
+			USBPHY_SET32(OFFSET_RG_USB20_PHY_REV6,
+					u2_enhance<<SHFT_RG_USB20_PHY_REV6);
+		}
+	}
+
+	pr_err("[set_usb_phy_mode] u2_vrt_ref = %d\n", u2_vrt_ref);
+	pr_err("[set_usb_phy_mode] u2_term_ref = %d\n", u2_term_ref);
+	pr_err("[set_usb_phy_mode] u2_enhance = %d\n", u2_enhance);
+/* BSP.charge --2021.01.14-- cc/otg line failed to read auxiliary machine file end */
 	DBG(0, "force PHY to mode %d, 0x6c=%x\n", mode, USBPHY_READ32(0x6c));
 }
 
@@ -756,7 +802,7 @@ void usb_phy_recover(void)
 	USBPHY_CLR32(0x18, (0xf<<0));
 	USBPHY_SET32(0x18, (0x5<<0));
 
-	usb_phy_tuning();
+	//usb_phy_tuning();
 
 	DBG(0, "usb recovery success\n");
 }

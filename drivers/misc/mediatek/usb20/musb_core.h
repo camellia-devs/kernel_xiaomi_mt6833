@@ -275,7 +275,6 @@ struct musb_platform_ops {
 	void (*disable_clk)(struct musb *musb);
 	void (*prepare_clk)(struct musb *musb);
 	void (*unprepare_clk)(struct musb *musb);
-	void (*enable_wakeup)(struct musb *musb, bool enable);
 };
 
 /*
@@ -522,8 +521,6 @@ struct musb {
 #ifdef CONFIG_DUAL_ROLE_USB_INTF
 	struct dual_role_phy_instance *dr_usb;
 #endif /* CONFIG_DUAL_ROLE_USB_INTF */
-	/* host suspend */
-	bool host_suspend;
 };
 
 static inline struct musb *gadget_to_musb(struct usb_gadget *g)
@@ -668,18 +665,6 @@ static inline void musb_platform_unprepare_clk(struct musb *musb)
 		musb->ops->unprepare_clk(musb);
 }
 
-static inline void musb_platform_enable_wakeup(struct musb *musb)
-{
-	if (musb->ops->enable_wakeup)
-		musb->ops->enable_wakeup(musb, true);
-}
-
-static inline void musb_platform_disable_wakeup(struct musb *musb)
-{
-	if (musb->ops->enable_wakeup)
-		musb->ops->enable_wakeup(musb, false);
-}
-
 /* #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0) */
 #if 1
 static inline const char *otg_state_string(enum usb_otg_state state)
@@ -691,9 +676,7 @@ enum {
 	USB_DPIDLE_ALLOWED = 0,
 	USB_DPIDLE_FORBIDDEN,
 	USB_DPIDLE_SRAM,
-	USB_DPIDLE_TIMER,
-	USB_DPIDLE_SUSPEND,
-	USB_DPIDLE_RESUME
+	USB_DPIDLE_TIMER
 };
 extern void usb_hal_dpidle_request(int mode);
 extern void register_usb_hal_dpidle_request(void (*function)(int));
