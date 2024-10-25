@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -297,8 +298,8 @@ static void AFRegulatorCtrl(int Stage)
 					LOG_INF("regulator_get(%s)\n", "mt6317-ldo3");
 					#else
 					regVCAMAF =
-					regulator_get(lens_device, "vcamio");
-					LOG_INF("regulator_get(%s)\n", "vcamio");
+					regulator_get(lens_device, "vtp");
+					LOG_INF("regulator_get(%s)\n", "vtp");
 					#endif
 				}
 				#elif defined(CONFIG_MACH_MT6853)
@@ -308,7 +309,7 @@ static void AFRegulatorCtrl(int Stage)
 					regulator_get(lens_device, "vmch");
 				} else {
 					regVCAMAF =
-					regulator_get(lens_device, "vcamio");
+					regulator_get(lens_device, "vtp");
 				}
 				#elif defined(CONFIG_MACH_MT6873)
 				if (strncmp(CONFIG_ARCH_MTK_PROJECT,
@@ -319,9 +320,6 @@ static void AFRegulatorCtrl(int Stage)
 					regVCAMAF =
 					regulator_get(lens_device, "vcamio");
 				}
-				#elif defined(CONFIG_MACH_MT6781)
-				regVCAMAF =
-					regulator_get(lens_device, "rt5133-ldo3");
 				#elif defined(CONFIG_MACH_MT6885) || defined(CONFIG_MACH_MT6893)
 				if (strncmp(CONFIG_ARCH_MTK_PROJECT,
 					"k6885v1_64_alpha", 16) == 0) {
