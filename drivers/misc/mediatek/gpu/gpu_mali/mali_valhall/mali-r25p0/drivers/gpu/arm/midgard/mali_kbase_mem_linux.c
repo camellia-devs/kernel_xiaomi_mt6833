@@ -57,11 +57,6 @@
 static DEFINE_MUTEX(config_ion_buffer_lock_mutex);
 #endif
 
-#ifdef CONFIG_MTK_TRUSTED_MEMORY_SUBSYSTEM
-#include <trusted_mem_api.h>
-#include <mtk/ion_sec_heap.h>
-#endif
-
 #if ((KERNEL_VERSION(5, 3, 0) <= LINUX_VERSION_CODE) || \
 	(KERNEL_VERSION(5, 0, 0) > LINUX_VERSION_CODE))
 /* Enable workaround for ion for kernels prior to v5.0.0 and from v5.3.0
@@ -606,12 +601,6 @@ unsigned long kbase_mem_evictable_reclaim_count_objects(struct shrinker *s,
 	unsigned long pages = 0;
 
 	kctx = container_of(s, struct kbase_context, reclaim);
-        /*
-	 * [GPUCORE-27200] WA for scheduling while atomic avoidance
-	 * return 0 while callback is called with GFP_ATOMIC
-	 */
-	if (sc->gfp_mask & __GFP_ATOMIC)
-		return 0;
 
 	// MTK add to prevent false alarm
 	lockdep_off();
@@ -915,12 +904,7 @@ int kbase_mem_flags_change(struct kbase_context *kctx, u64 gpu_addr, unsigned in
 	prev_needed = (KBASE_REG_DONT_NEED & reg->flags) == KBASE_REG_DONT_NEED;
 	new_needed = (BASE_MEM_DONT_NEED & flags) == BASE_MEM_DONT_NEED;
 	if (prev_needed != new_needed) {
-		/* Aliased allocations can't be shrunk as the code doesn't
-		 * support looking up:
-		 * - all physical pages assigned to different GPU VAs
-		 * - CPU mappings for the physical pages at different vm_pgoff
-		 *   (==GPU VA) locations.
-		 */
+		/* Aliased allocations can't be made ephemeral */
 		if (atomic_read(&reg->cpu_alloc->gpu_mappings) > 1)
 			goto out_unlock;
 
@@ -1026,11 +1010,6 @@ int kbase_mem_do_sync_imported(struct kbase_context *kctx,
 	 * GPU and CPU for imported buffers.
 	 */
 	WARN_ON(reg->cpu_alloc != reg->gpu_alloc);
-
-	if (reg->flags & KBASE_REG_PROTECTED) {
-		ret = 0;
-		return ret;
-	}
 
 	/* Currently only handle dma-bufs */
 	if (reg->gpu_alloc->type != KBASE_MEM_TYPE_IMPORTED_UMM)
@@ -1207,42 +1186,17 @@ retry:
 
 	for_each_sg(sgt->sgl, s, sgt->nents, i) {
 		size_t j, pages = PFN_UP(sg_dma_len(s));
-		uint64_t phy_addr = 0;
-
-#ifdef CONFIG_MTK_TRUSTED_MEMORY_SUBSYSTEM
-		if (reg->flags & KBASE_REG_PROTECTED) {
-			u32 sec_handle = sg_dma_address(s);
-			struct dma_buf *dma_buf = reg->gpu_alloc->imported.umm.dma_buf;
-			enum TRUSTED_MEM_REQ_TYPE sec_mem_type =
-				ion_get_trust_mem_type(dma_buf);
-
-			trusted_mem_api_query_pa(
-				sec_mem_type, 0, 0, NULL, &sec_handle, NULL, 0, 0, &phy_addr);
-
-			if (phy_addr == 0) {
-				dev_warn(kctx->kbdev->dev,
-					"can't get PA: sec_mem_type=%d, sec_handle=%llx, phy_addr=%llx\n",
-					sec_mem_type,
-					(unsigned long long)sec_handle,
-					(unsigned long long)phy_addr);
-				err = -EINVAL;
-				goto err_unmap_attachment;
-			}
-		} else
-#endif
-			phy_addr = sg_phys(s);
-
 
 		WARN_ONCE(sg_dma_len(s) & (PAGE_SIZE-1),
 		"sg_dma_len(s)=%u is not a multiple of PAGE_SIZE\n",
 		sg_dma_len(s));
 
-		WARN_ONCE(phy_addr & (PAGE_SIZE-1),
+		WARN_ONCE(sg_phys(s) & (PAGE_SIZE-1),
 		"sg_phys(s)=%llx is not aligned to PAGE_SIZE\n",
-		(unsigned long long)phy_addr);
+		(unsigned long long) sg_phys(s));
 
 		for (j = 0; (j < pages) && (count < reg->nr_pages); j++, count++)
-			*pa++ = as_tagged(phy_addr +
+			*pa++ = as_tagged(sg_phys(s) +
 				(j << PAGE_SHIFT));
 		WARN_ONCE(j < pages,
 		"sg list from dma_buf_map_attachment > dma_buf->size=%zu\n",
@@ -1604,7 +1558,6 @@ static struct kbase_va_region *kbase_mem_from_user_buffer(
 	u32 cache_line_alignment = kbase_get_cache_line_alignment(kctx->kbdev);
 	struct kbase_alloc_import_user_buf *user_buf;
 	struct page **pages = NULL;
-	int write;
 
 	/* Flag supported only for dma-buf imported memory */
 	if (*flags & BASE_MEM_IMPORT_SYNC_ON_MAP_UNMAP)
@@ -1718,22 +1671,22 @@ static struct kbase_va_region *kbase_mem_from_user_buffer(
 
 	down_read(&current->mm->mmap_sem);
 
-	write = reg->flags & (KBASE_REG_CPU_WR | KBASE_REG_GPU_WR);
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 	faulted_pages = get_user_pages(current, current->mm, address, *va_pages,
 #if KERNEL_VERSION(4, 4, 168) <= LINUX_VERSION_CODE && \
 KERNEL_VERSION(4, 5, 0) > LINUX_VERSION_CODE
-			write ? FOLL_WRITE : 0, pages, NULL);
+			reg->flags & KBASE_REG_GPU_WR ? FOLL_WRITE : 0,
+			pages, NULL);
 #else
-			write, 0, pages, NULL);
+			reg->flags & KBASE_REG_GPU_WR, 0, pages, NULL);
 #endif
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0)
 	faulted_pages = get_user_pages(address, *va_pages,
-			write, 0, pages, NULL);
+			reg->flags & KBASE_REG_GPU_WR, 0, pages, NULL);
 #else
 	faulted_pages = get_user_pages(address, *va_pages,
-			write ? FOLL_WRITE : 0, pages, NULL);
+			reg->flags & KBASE_REG_GPU_WR ? FOLL_WRITE : 0,
+			pages, NULL);
 #endif
 
 	up_read(&current->mm->mmap_sem);
@@ -1905,15 +1858,6 @@ u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride,
 				goto bad_handle; /* Not found/already free */
 			if (aliasing_reg->flags & KBASE_REG_DONT_NEED)
 				goto bad_handle; /* Ephemeral region */
-			if (aliasing_reg->flags & KBASE_REG_NO_USER_FREE)
-				goto bad_handle; /* JIT regions can't be
-						  * aliased. NO_USER_FREE flag
-						  * covers the entire lifetime
-						  * of JIT regions. The other
-						  * types of regions covered
-						  * by this flag also shall
-						  * not be aliased.
-						  */
 			if (!(aliasing_reg->flags & KBASE_REG_GPU_CACHED))
 				goto bad_handle; /* GPU uncached memory */
 			if (!aliasing_reg->gpu_alloc)
@@ -1943,18 +1887,6 @@ u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride,
 			reg->gpu_alloc->imported.alias.aliased[i].alloc = kbase_mem_phy_alloc_get(alloc);
 			reg->gpu_alloc->imported.alias.aliased[i].length = ai[i].length;
 			reg->gpu_alloc->imported.alias.aliased[i].offset = ai[i].offset;
-
-			/* Ensure the underlying alloc is marked as being
-			 * mapped at >1 different GPU VA immediately, even
-			 * though mapping might not happen until later.
-			 *
-			 * Otherwise, we would (incorrectly) allow shrinking of
-			 * the source region (aliasing_reg) and so freeing the
-			 * physical pages (without freeing the entire alloc)
-			 * whilst we still hold an implicit reference on those
-			 * physical pages.
-			 */
-			kbase_mem_phy_alloc_gpu_mapped(alloc);
 		}
 	}
 
@@ -1998,10 +1930,6 @@ no_cookie:
 #endif
 no_mmap:
 bad_handle:
-	/* Marking the source allocs as not being mapped on the GPU and putting
-	 * them is handled by putting reg's allocs, so no rollback of those
-	 * actions is done here.
-	 */
 	kbase_gpu_vm_unlock(kctx);
 no_aliased_array:
 invalid_flags:
@@ -2255,15 +2183,7 @@ int kbase_mem_commit(struct kbase_context *kctx, u64 gpu_addr, u64 new_pages)
 	if (new_pages > reg->nr_pages)
 		goto out_unlock;
 
-	/* Can't shrink when physical pages are mapped to different GPU
-	 * VAs. The code doesn't support looking up:
-	 * - all physical pages assigned to different GPU VAs
-	 * - CPU mappings for the physical pages at different vm_pgoff
-	 *   (==GPU VA) locations.
-	 *
-	 * Note that for Native allocs mapped at multiple GPU VAs, growth of
-	 * such allocs is not a supported use-case.
-	 */
+	/* can't be mapped more than once on the GPU */
 	if (atomic_read(&reg->gpu_alloc->gpu_mappings) > 1)
 		goto out_unlock;
 	/* can't grow regions which are ephemeral */
