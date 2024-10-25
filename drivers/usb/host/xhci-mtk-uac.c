@@ -134,7 +134,6 @@ EXPORT_SYMBOL_GPL(xhci_mtk_set_sleep);
 
 int xhci_mtk_init_sram(struct xhci_hcd *xhci)
 {
-#ifdef CONFIG_SND_USB_AUDIO
 	int i;
 	int offset = 0;
 	unsigned int xhci_sram_size = 0;
@@ -174,9 +173,6 @@ int xhci_mtk_init_sram(struct xhci_hcd *xhci)
 				 xhci_sram[i].mlength);
 	}
 	return 0;
-#else
-	return -ENOMEM;
-#endif
 }
 EXPORT_SYMBOL_GPL(xhci_mtk_init_sram);
 
@@ -243,12 +239,6 @@ void *mtk_usb_alloc_sram(unsigned int id, size_t size, dma_addr_t *dma)
 	/* check if xhci control buffer on sram */
 	if (xhci_sram[0].state != STATE_USE)
 		return NULL;
-
-	if (usb_audio_sram[id].state == STATE_USE) {
-		pr_info("%s state_use id=%d\n", __func__, id);
-		return NULL;
-
-	}
 
 	mtk_audio_request_sram(dma, (unsigned char **)&sram_virt_addr,
 					   size, &usb_audio_sram[id]);
