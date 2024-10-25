@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2019 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  * Author: Argus Lin <argus.lin@mediatek.com>
  */
 
@@ -15,6 +16,9 @@
 #include <linux/sched/clock.h>
 #include <linux/timer.h>
 #include <linux/irq.h>
+/* BSP.audio - 2020.11.09 - modify to add headphone node start */
+#include <linux/switch.h>
+/* BSP.audio - 2020.11.02 - modify to change keycode end */
 #include "reg_accdet.h"
 #if defined CONFIG_MTK_PMIC_NEW_ARCH
 #include <upmu_common.h>
@@ -73,6 +77,10 @@
 #define EINT_PIN_PLUG_IN        (1)
 #define EINT_PIN_PLUG_OUT       (0)
 #define EINT_PIN_MOISTURE_DETECTED (2)
+/* BSP.audio - 2020.12.11 - modify to change keycode start */
+#define MEDIA_PREVIOUS_SCAN_CODE 257
+#define MEDIA_NEXT_SCAN_CODE 258
+/* BSP.audio - 2020.12.11 - modify to change keycode end */
 
 #ifdef CONFIG_ACCDET_EINT_IRQ
 enum pmic_eint_ID {
@@ -203,6 +211,9 @@ static int moisture_int_r = 47000;
 /* unit is ohm */
 static int moisture_ext_r = 470000;
 
+/* BSP.audio - 2020.11.09 - modify to add headphone node start */
+static struct switch_dev accdet_data;
+/* BSP.audio - 2020.11.02 - modify to change keycode end */
 static bool debug_thread_en;
 static bool dump_reg;
 static struct task_struct *thread;
@@ -1036,19 +1047,21 @@ static void send_key_event(u32 keycode, u32 flag)
 {
 	switch (keycode) {
 	case DW_KEY:
-		input_report_key(accdet_input_dev, KEY_VOLUMEDOWN, flag);
+	/* BSP.audio.kernel - 2020.12.11 - modify to change keycode start */
+		input_report_key(accdet_input_dev, MEDIA_NEXT_SCAN_CODE, flag);
 		input_sync(accdet_input_dev);
-		pr_debug("accdet KEY_VOLUMEDOWN %d\n", flag);
+		pr_debug("accdet MEDIA_NEXT_SCAN_CODE %d\n", flag);
 		break;
 	case UP_KEY:
-		input_report_key(accdet_input_dev, KEY_VOLUMEUP, flag);
+		input_report_key(accdet_input_dev, MEDIA_PREVIOUS_SCAN_CODE, flag);
 		input_sync(accdet_input_dev);
-		pr_debug("accdet KEY_VOLUMEUP %d\n", flag);
+		pr_debug("accdet MEDIA_PREVIOUS_SCAN_CODE %d\n", flag);
 		break;
 	case MD_KEY:
-		input_report_key(accdet_input_dev, KEY_PLAYPAUSE, flag);
+		input_report_key(accdet_input_dev, KEY_MEDIA, flag);
 		input_sync(accdet_input_dev);
-		pr_debug("accdet KEY_PLAYPAUSE %d\n", flag);
+		pr_debug("accdet KEY_MEDIA %d\n", flag);
+		/* BSP.audio.kernel - 2020.12.11 - modify to change keycode end */
 		break;
 	case AS_KEY:
 		input_report_key(accdet_input_dev, KEY_VOICECOMMAND, flag);
@@ -1075,6 +1088,9 @@ static void send_accdet_status_event(u32 cable_type, u32 status)
 		input_sync(accdet_input_dev);
 		pr_info("%s HEADPHONE(3-pole) %s\n", __func__,
 			status ? "PlugIn" : "PlugOut");
+		/* BSP.audio - 2020.11.09 - modify to add headphone node start */
+		switch_set_state(&accdet_data, status == 0 ? EINT_PIN_PLUG_OUT : EINT_PIN_PLUG_IN);
+		/* BSP.audio - 2020.11.02 - modify to change keycode end */
 		break;
 	case HEADSET_MIC:
 		/* when plug 4-pole out, 3-pole plug out should also be
@@ -1088,6 +1104,9 @@ static void send_accdet_status_event(u32 cable_type, u32 status)
 		input_sync(accdet_input_dev);
 		pr_info("%s MICROPHONE(4-pole) %s\n", __func__,
 			status ? "PlugIn" : "PlugOut");
+		/* BSP.audio - 2020.11.09 - modify to add headphone node start */
+		switch_set_state(&accdet_data, status == 0 ? EINT_PIN_PLUG_OUT : EINT_PIN_PLUG_IN);
+		/* BSP.audio - 2020.11.02 - modify to change keycode end */
 		break;
 	case LINE_OUT_DEVICE:
 		input_report_switch(accdet_input_dev, SW_LINEOUT_INSERT,
@@ -1095,6 +1114,9 @@ static void send_accdet_status_event(u32 cable_type, u32 status)
 		input_sync(accdet_input_dev);
 		pr_info("%s LineOut %s\n", __func__,
 			status ? "PlugIn" : "PlugOut");
+		/* BSP.audio - 2020.11.09 - modify to add headphone node start */
+		switch_set_state(&accdet_data, status == 0 ? EINT_PIN_PLUG_OUT : EINT_PIN_PLUG_IN);
+		/* BSP.audio - 2020.11.02 - modify to change keycode end */
 		break;
 	default:
 		pr_info("%s Invalid cableType\n", __func__);
@@ -3253,7 +3275,16 @@ int mt_accdet_probe(struct platform_device *dev)
 	struct platform_driver accdet_driver_hal = accdet_driver_func();
 
 	pr_info("%s() begin!\n", __func__);
-
+	/* BSP.audio - 2020.11.09 - modify to add headphone node start */
+	accdet_data.name = "h2w";
+	accdet_data.index = 0;
+	accdet_data.state = 0;
+	ret = switch_dev_register(&accdet_data);
+	if (ret) {
+		pr_notice("%s switch_dev_register fail:%d!\n", __func__, ret);
+		return -1;
+	}
+	/* BSP.audio - 2020.11.02 - modify to change keycode end */
 	/* register char device number, Create normal device for auido use */
 	ret = alloc_chrdev_region(&accdet_devno, 0, 1, ACCDET_DEVNAME);
 	if (ret) {
@@ -3301,11 +3332,12 @@ int mt_accdet_probe(struct platform_device *dev)
 	}
 
 	__set_bit(EV_KEY, accdet_input_dev->evbit);
-	__set_bit(KEY_PLAYPAUSE, accdet_input_dev->keybit);
-	__set_bit(KEY_VOLUMEDOWN, accdet_input_dev->keybit);
-	__set_bit(KEY_VOLUMEUP, accdet_input_dev->keybit);
+	/* BSP.audio - 2020.12.11 - modify to change keycode start */
+	__set_bit(KEY_MEDIA, accdet_input_dev->keybit);
+	__set_bit(MEDIA_NEXT_SCAN_CODE, accdet_input_dev->keybit);
+	__set_bit(MEDIA_PREVIOUS_SCAN_CODE, accdet_input_dev->keybit);
+	/* BSP.audio - 2020.12.11 - modify to change keycode end */
 	__set_bit(KEY_VOICECOMMAND, accdet_input_dev->keybit);
-
 	__set_bit(EV_SW, accdet_input_dev->evbit);
 	__set_bit(SW_HEADPHONE_INSERT, accdet_input_dev->swbit);
 	__set_bit(SW_MICROPHONE_INSERT, accdet_input_dev->swbit);
@@ -3441,6 +3473,9 @@ err_class_create:
 err_cdev_add:
 	unregister_chrdev_region(accdet_devno, 1);
 err_chrdevregion:
+	/* BSP.audio - 2020.11.09 - modify to add headphone node start */
+	switch_dev_unregister(&accdet_data);
+	/* BSP.audio - 2020.11.02 - modify to change keycode end */
 	pr_notice("%s error. now exit.!\n", __func__);
 	return ret;
 }
@@ -3459,6 +3494,9 @@ void mt_accdet_remove(void)
 	class_destroy(accdet_class);
 	cdev_del(accdet_cdev);
 	unregister_chrdev_region(accdet_devno, 1);
+	/* BSP.audio - 2020.11.09 - modify to add headphone node start */
+	switch_dev_unregister(&accdet_data);
+	/* BSP.audio - 2020.11.02 - modify to change keycode end */
 	pr_debug("%s done!\n", __func__);
 }
 #endif /* end of #if PMIC_ACCDET_KERNEL */
