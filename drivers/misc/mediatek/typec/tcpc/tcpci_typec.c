@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * TCPC Type-C Driver for Richtek
  *
@@ -1997,6 +1998,8 @@ static inline bool typec_is_ignore_cc_change(
 	return false;
 }
 
+/* BSP.Charge - 2020.11.11 - Add node to show typec_cc_orientation*/
+int typec_cc_orient;
 int tcpc_typec_handle_cc_change(struct tcpc_device *tcpc_dev)
 {
 	int ret;
@@ -2014,7 +2017,14 @@ int tcpc_typec_handle_cc_change(struct tcpc_device *tcpc_dev)
 		return ret;
 
 	TYPEC_INFO("[CC_Alert] %d/%d\r\n", typec_get_cc1(), typec_get_cc2());
-
+/* BSP.Charge - 2020.11.11 - Add node to show typec_cc_orientation start*/
+	if (typec_get_cc1() == 0 && typec_get_cc2() == 0)
+		typec_cc_orient = 0;
+	else if (typec_get_cc2() == 0)
+		typec_cc_orient = 1;
+	else if (typec_get_cc1() == 0)
+		typec_cc_orient = 2;
+/* end */
 	if (typec_is_drp_toggling()) {
 		TYPEC_DBG("[Warning] DRP Toggling\r\n");
 		if (tcpc_dev->typec_lpm && !tcpc_dev->typec_cable_only)
