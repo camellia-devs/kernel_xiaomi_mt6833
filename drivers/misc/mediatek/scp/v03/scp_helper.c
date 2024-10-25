@@ -79,7 +79,6 @@ unsigned int scp_enable[SCP_CORE_TOTAL];
 /* scp dvfs variable*/
 unsigned int scp_expected_freq;
 unsigned int scp_current_freq;
-unsigned int scp_dvfs_cali_ready;
 
 /*scp awake variable*/
 int scp_awake_counts[SCP_CORE_TOTAL];
@@ -128,9 +127,7 @@ static struct timer_list scp_ready_timer[SCP_CORE_TOTAL];
 #endif
 static struct scp_work_struct scp_A_notify_work;
 
-#if SCP_BOOT_TIME_OUT_MONITOR
 static unsigned int scp_timeout_times;
-#endif
 
 static DEFINE_MUTEX(scp_A_notify_mutex);
 static DEFINE_MUTEX(scp_feature_mutex);
@@ -396,7 +393,6 @@ static void scp_A_notify_ws(struct work_struct *ws)
 		scp_pll_ctrl_set(PLL_DISABLE, CLK_26M);
 #endif
 
-		scp_dvfs_cali_ready = 1;
 		pr_debug("[SCP] notify blocking call\n");
 		blocking_notifier_call_chain(&scp_A_notifier_list
 			, SCP_EVENT_READY, NULL);
@@ -1159,12 +1155,6 @@ void scp_register_feature(enum feature_id id)
 			scp_ready[SCP_A_ID]);
 		return;
 	}
-	/* prevent from access when scp dvfs cali isn't done */
-	if (!scp_dvfs_cali_ready) {
-		pr_debug("[SCP] %s: dvfs cali not ready, scp_dvfs_cali=%u\n",
-		__func__, scp_dvfs_cali_ready);
-		return;
-	}
 
 	/* because feature_table is a global variable,
 	 * use mutex lock to protect it from accessing in the same time
@@ -1211,12 +1201,6 @@ void scp_deregister_feature(enum feature_id id)
 	if (!scp_ready[SCP_A_ID]) {
 		pr_debug("[SCP] %s:not ready, scp=%u\n", __func__,
 			scp_ready[SCP_A_ID]);
-		return;
-	}
-	/* prevent from access when scp dvfs cali isn't done */
-	if (!scp_dvfs_cali_ready) {
-		pr_debug("[SCP] %s: dvfs cali not ready, scp_dvfs_cali=%u\n",
-		__func__, scp_dvfs_cali_ready);
 		return;
 	}
 
@@ -1431,7 +1415,6 @@ void scp_sys_reset_ws(struct work_struct *ws)
 	 *   SCP_PLATFORM_READY = 1,
 	 */
 	scp_ready[SCP_A_ID] = 0;
-	scp_dvfs_cali_ready = 0;
 
 	/* wake lock AP*/
 	__pm_stay_awake(&scp_reset_lock);
@@ -1830,7 +1813,6 @@ static int __init scp_init(void)
 		scp_enable[i] = 0;
 		scp_ready[i] = 0;
 	}
-	scp_dvfs_cali_ready = 0;
 
 #if SCP_DVFS_INIT_ENABLE
 	scp_dvfs_init();
