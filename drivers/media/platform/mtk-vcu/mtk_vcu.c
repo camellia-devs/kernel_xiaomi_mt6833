@@ -52,9 +52,7 @@
 #include <uapi/linux/mtk_vcu_controls.h>
 #include "mtk_vcu.h"
 #include "smi_public.h"
-#ifdef CONFIG_MTK_SVP_ON_MTEE_SUPPORT
-#include "tz_m4u.h"
-#endif
+
 /*
 #undef pr_debug
 #define pr_debug pr_info
@@ -771,20 +769,9 @@ static void vcu_gce_flush_callback(struct cmdq_cb_data data)
 				vcu->gce_job_cnt[i][core_id].counter);
 	if (atomic_dec_and_test(&vcu->gce_job_cnt[i][core_id]) &&
 		vcu->gce_info[j].v4l2_ctx != NULL){
-		if (i == VCU_VENC) {
+		if (i == VCU_VENC)
 			venc_encode_unprepare(vcu->gce_info[j].v4l2_ctx,
 				buff->cmdq_buff.core_id, &vcu->flags[i]);
-#if defined(CONFIG_MTK_SEC_VIDEO_PATH_SUPPORT)
-#if !(IS_ENABLED(CONFIG_MACH_MT6768) || IS_ENABLED(CONFIG_MACH_MT6779) ||\
-IS_ENABLED(CONFIG_MACH_MT6785))
-			if (buff->cmdq_buff.secure != 0)
-				cmdq_sec_mbox_switch_normal(vcu->clt_venc_sec[0],
-					(buff->cmdq_buff.secure == 3));
-#endif
-#endif
-			venc_unlock(vcu->gce_info[j].v4l2_ctx,
-				buff->cmdq_buff.core_id);
-		}
 	}
 	mutex_unlock(&vcu->vcu_gce_mutex[i]);
 
@@ -916,21 +903,6 @@ static int vcu_gce_cmd_flush(struct mtk_vcu *vcu,
 
 	time_check_start();
 	mutex_lock(&vcu->vcu_gce_mutex[i]);
-
-	if (buff.cmdq_buff.codec_type == VCU_VENC) {
-		int lock = -1;
-
-		while (lock != 0) {
-			lock = venc_lock(vcu->gce_info[j].v4l2_ctx, core_id,
-				(bool)buff.cmdq_buff.secure);
-			if (lock != 0) {
-				mutex_unlock(&vcu->vcu_gce_mutex[i]);
-				usleep_range(1000, 2000);
-				mutex_lock(&vcu->vcu_gce_mutex[i]);
-			}
-		}
-	}
-
 	if (atomic_read(&vcu->gce_job_cnt[i][core_id]) == 0 &&
 		vcu->gce_info[j].v4l2_ctx != NULL){
 		if (i == VCU_VENC) {
@@ -991,14 +963,6 @@ static int vcu_gce_cmd_flush(struct mtk_vcu *vcu,
 			cmdq_sec_pkt_set_data(pkt_ptr, dapc_engine,
 				port_sec_engine, CMDQ_SEC_KERNEL_CONFIG_GENERAL,
 				CMDQ_METAEX_VENC);
-#ifdef CONFIG_MTK_SVP_ON_MTEE_SUPPORT
-			if (buff.cmdq_buff.secure == 3) {
-				// CMDQ MTEE hint
-				pr_debug("[VCU] Use MTEE\n");
-				cmdq_sec_pkt_set_mtee(pkt_ptr,
-					 (buff.cmdq_buff.secure == 3), SEC_ID_WFD);
-			}
-#endif
 #endif
 		}
 	}
