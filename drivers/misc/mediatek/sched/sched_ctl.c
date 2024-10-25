@@ -608,15 +608,14 @@ int select_task_prefer_cpu(struct task_struct *p, int new_cpu)
 			break;
 #endif
 
-		if (cpumask_test_cpu(new_cpu, &domain->possible_cpus) && !cpu_isolated(new_cpu))
+		if (cpumask_test_cpu(new_cpu, &domain->possible_cpus))
 			goto out;
 
 		for_each_cpu(iter_cpu, &domain->possible_cpus) {
 
 			/* tsk with prefer idle to find bigger idle cpu */
 			if (!cpu_online(iter_cpu) ||
-				!cpumask_test_cpu(iter_cpu, tsk_cpus_allow) ||
-				cpu_isolated(iter_cpu))
+				!cpumask_test_cpu(iter_cpu, tsk_cpus_allow))
 				continue;
 
 			/* favoring tasks that prefer idle cpus
