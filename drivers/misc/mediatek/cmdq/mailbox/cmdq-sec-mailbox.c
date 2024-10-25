@@ -95,7 +95,6 @@ struct cmdq_sec_thread {
 	u32			idx;
 	bool			occupied;
 	bool			dirty;
-	atomic_t		user_usage;
 
 	/* following part only secure ctrl */
 	u32			wait_cookie;
@@ -276,14 +275,6 @@ void cmdq_sec_mbox_enable(void *chan)
 {
 	struct cmdq_sec *cmdq = container_of(((struct mbox_chan *)chan)->mbox,
 		typeof(*cmdq), mbox);
-	struct cmdq_sec_thread *thread = ((struct mbox_chan *)chan)->con_priv;
-	s32 user_usage = -1;
-
-	if (!thread) {
-		cmdq_err("thread is NULL");
-		dump_stack();
-		return;
-	}
 
 	WARN_ON(cmdq->suspended);
 	if (cmdq->suspended) {
@@ -292,12 +283,6 @@ void cmdq_sec_mbox_enable(void *chan)
 			atomic_read(&cmdq->usage));
 		return;
 	}
-
-	user_usage = atomic_inc_return(&thread->user_usage);
-	WARN_ON(user_usage <= 0);
-	if (user_usage <= 0)
-		cmdq_util_user_err(chan, "user_usage:%d", user_usage);
-
 	cmdq_sec_clk_enable(cmdq);
 }
 
@@ -305,14 +290,6 @@ void cmdq_sec_mbox_disable(void *chan)
 {
 	struct cmdq_sec *cmdq = container_of(((struct mbox_chan *)chan)->mbox,
 		typeof(*cmdq), mbox);
-	struct cmdq_sec_thread *thread = ((struct mbox_chan *)chan)->con_priv;
-	s32 user_usage = -1;
-
-	if (!thread) {
-		cmdq_err("thread is NULL");
-		dump_stack();
-		return;
-	}
 
 	WARN_ON(cmdq->suspended);
 	if (cmdq->suspended) {
@@ -321,16 +298,6 @@ void cmdq_sec_mbox_disable(void *chan)
 			atomic_read(&cmdq->usage));
 		return;
 	}
-
-	user_usage = atomic_dec_return(&thread->user_usage);
-	WARN_ON(user_usage < 0);
-	if (user_usage < 0) {
-		atomic_inc(&thread->user_usage);
-		cmdq_util_user_err(chan, "%s thd%d, usage:%d, cannot disable",
-				__func__, thread->idx, user_usage);
-		return;
-	}
-
 	cmdq_sec_clk_disable(cmdq);
 }
 
@@ -839,10 +806,7 @@ static s32 cmdq_sec_fill_iwc_msg(struct cmdq_sec_context *context,
 	iwc_msg->command.scenario = task->scenario;
 	iwc_msg->command.priority = task->pkt->priority;
 	iwc_msg->command.engineFlag = task->engineFlag;
-#ifdef CMDQ_SECURE_MTEE_SUPPORT
-	if (data->mtee)
-		iwc_msg->command.sec_id = data->sec_id;
-#endif
+
 	last = list_last_entry(&task->pkt->buf, typeof(*last), list_entry);
 	list_for_each_entry(buf, &task->pkt->buf, list_entry) {
 		if (buf == last)
@@ -1169,7 +1133,7 @@ cmdq_sec_task_submit(struct cmdq_sec *cmdq, struct cmdq_sec_task *task,
 		/* do m4u sec init */
 		if (atomic_cmpxchg(&m4u_init, 0, 1) == 0) {
 			m4u_sec_init();
-			cmdq_msg("[SEC][task] M4U_sec_init is called\n");
+			cmdq_log("[SEC] M4U_sec_init is called\n");
 		}
 #endif
 
@@ -1251,28 +1215,30 @@ static const struct of_device_id cmdq_sec_of_ids[] = {
 	{}
 };
 
-void cmdq_sec_mbox_switch_normal(struct cmdq_client *cl, const bool mtee)
+void cmdq_sec_mbox_switch_normal(struct cmdq_client *cl)
 {
+#ifdef CMDQ_GP_SUPPORT
 	struct cmdq_sec *cmdq =
 		container_of(cl->chan->mbox, typeof(*cmdq), mbox);
 	struct cmdq_sec_thread *thread =
 		(struct cmdq_sec_thread *)cl->chan->con_priv;
 
-	WARN_ON(clk_prepare(cmdq->clock) < 0);
+	cmdq_sec_resume(cmdq->mbox.dev);
 	cmdq_sec_clk_enable(cmdq);
-	cmdq_log("[ IN] %s: cl:%p cmdq:%p thrd:%p idx:%u, mtee:%d\n",
-		__func__, cl, cmdq, thread, thread->idx, mtee);
+	cmdq_log("[ IN] %s: cl:%p cmdq:%p thrd:%p idx:%u\n",
+		__func__, cl, cmdq, thread, thread->idx);
 
 	mutex_lock(&cmdq->exec_lock);
 	/* TODO : use other CMD_CMDQ_TL for maintenance */
 	cmdq_sec_task_submit(cmdq, NULL, CMD_CMDQ_TL_PATH_RES_RELEASE,
-		thread->idx, NULL, mtee);
+		thread->idx, NULL, false);
 	mutex_unlock(&cmdq->exec_lock);
 
 	cmdq_log("[OUT] %s: cl:%p cmdq:%p thrd:%p idx:%u\n",
 		__func__, cl, cmdq, thread, thread->idx);
 	cmdq_sec_clk_disable(cmdq);
-	clk_unprepare(cmdq->clock);
+	cmdq_sec_suspend(cmdq->mbox.dev);
+#endif
 }
 EXPORT_SYMBOL(cmdq_sec_mbox_switch_normal);
 

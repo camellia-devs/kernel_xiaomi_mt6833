@@ -135,15 +135,13 @@ s32 cmdq_sec_pkt_set_data(struct cmdq_pkt *pkt, const u64 dapc_engine,
 }
 EXPORT_SYMBOL(cmdq_sec_pkt_set_data);
 
-void cmdq_sec_pkt_set_mtee(struct cmdq_pkt *pkt, const bool enable, const int32_t sec_id)
+void cmdq_sec_pkt_set_mtee(struct cmdq_pkt *pkt, const bool enable)
 {
 	struct cmdq_sec_data *sec_data =
 		(struct cmdq_sec_data *)pkt->sec_data;
 	sec_data->mtee = enable;
-	sec_data->sec_id = sec_id;
-	cmdq_msg("%s pkt:%p mtee:%d sec_id:%d\n",
-		__func__, pkt, ((struct cmdq_sec_data *)pkt->sec_data)->mtee,
-		((struct cmdq_sec_data *)pkt->sec_data)->sec_id);
+	cmdq_msg("%s pkt:%p mtee:%d\n",
+		__func__, pkt, ((struct cmdq_sec_data *)pkt->sec_data)->mtee);
 }
 EXPORT_SYMBOL(cmdq_sec_pkt_set_mtee);
 
