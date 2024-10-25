@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -27,6 +28,9 @@
 #include <mtk_cooler_setting.h>
 #include <linux/debugfs.h>
 
+/*BSP.Charge - 2020.11.25 - Config thermal framework - start*/
+#include <mtk_cooler_mutt_gen97.h>
+/*BSP.Charge - 2020.11.25 - Config thermal framework - end*/
 
 /****************************************************************************
  *  Macro Definitions
@@ -44,6 +48,9 @@
 #define TMC_IMS_ONLY_LEVEL		(TMC_COOLER_LV7)
 #define TMC_NO_IMS_LEVEL		(TMC_COOLER_LV8)
 #define TMC_MD_OFF_LEVEL		(0xFF)
+
+/*BSP.Charge - 2020.11.25 - Config thermal framework - start*/
+#if 0
 #define TMC_CA_CTRL_CA_ON \
 	(TMC_CTRL_CMD_CA_CTRL | TMC_CA_ON << 8)
 #define TMC_CA_CTRL_CA_OFF \
@@ -81,6 +88,8 @@
 	(TMC_CTRL_CMD_TX_POWER \
 	| (TMC_TW_PWR_REDUCE_NR_MAX_TX_EVENT << 16)	\
 	| (pwr << 24))
+#endif
+/*BSP.Charge - 2020.11.25 - Config thermal framework - end*/
 
 #if 0
 /*
@@ -92,7 +101,9 @@
 #endif
 
 /* State of "MD off & noIMS" are not included. */
-#define MAX_NUM_INSTANCE_MTK_COOLER_MUTT  8
+/*BSP.Charge - 2020.11.25 - Config thermal framework - start*/
+//#define MAX_NUM_INSTANCE_MTK_COOLER_MUTT  8
+/*BSP.Charge - 2020.11.25 - Config thermal framework - end*/
 #define MAX_NUM_TX_PWR_LV  3
 
 #define MTK_CL_MUTT_GET_LIMIT(limit, state) \
@@ -120,8 +131,10 @@ do { \
 #define for_each_tx_pwr_lv(i)  for (i = 0; i < MAX_NUM_TX_PWR_LV; i++)
 
 /* LOG */
+/*BSP.Charge - 2020.11.25 - Config thermal framework - start*/
 #define mtk_cooler_mutt_dprintk_always(fmt, args...) \
-pr_debug("[Thermal/TC/mutt]" fmt, ##args)
+pr_notice("[Thermal/TC/mutt]" fmt, ##args)
+/*BSP.Charge - 2020.11.25 - Config thermal framework - end*/
 
 #define mtk_cooler_mutt_dprintk(fmt, args...) \
 do { \
@@ -147,80 +160,6 @@ static const struct file_operations clmutt_ ## name ## _proc_fops = {         \
 	.release	= single_release,                                     \
 	.write	= clmutt_ ## name ## _proc_write,                             \
 }
-
-enum mutt_type {
-	MUTT_LTE,
-	MUTT_NR,
-
-	NR_MUTT_TYPE,
-};
-
-/*enum mapping must be align with MD site*/
-enum tmc_ctrl_cmd_enum {
-	TMC_CTRL_CMD_THROTTLING = 0,
-	TMC_CTRL_CMD_CA_CTRL,
-	TMC_CTRL_CMD_PA_CTRL,
-	TMC_CTRL_CMD_COOLER_LV,
-	/* MD internal use start */
-	TMC_CTRL_CMD_CELL,            /* refer as del_cell */
-	TMC_CTRL_CMD_BAND,            /* refer as del_band */
-	TMC_CTRL_CMD_INTER_BAND_OFF,  /* similar to PA_OFF on Gen95 */
-	TMC_CTRL_CMD_CA_OFF,          /* similar to CA_OFF on Gen95 */
-	/* MD internal use end */
-	TMC_CTRL_CMD_SCG_OFF,         /* Fall back to 4G */
-	TMC_CTRL_CMD_SCG_ON,          /* Enabled 5G */
-	TMC_CTRL_CMD_TX_POWER,
-	TMC_CTRL_CMD_DEFAULT,
-};
-
-enum tmc_throt_ctrl_enum {
-	TMC_THROT_ENABLE_IMS_ENABLE = 0,
-	TMC_THROT_ENABLE_IMS_DISABLE,
-	TMC_THROT_DISABLE,
-};
-
-enum tmc_ca_ctrl_enum {
-	TMC_CA_ON = 0, /* leave thermal control*/
-	TMC_CA_OFF,
-};
-
-enum tmc_pa_ctrl_enum {
-	TMC_PA_ALL_ON = 0, /* leave thermal control*/
-	TMC_PA_OFF_1PA,
-};
-
-enum tmc_cooler_lv_ctrl_enum {
-	TMC_COOLER_LV_ENABLE = 0,
-	TMC_COOLER_LV_DISABLE
-};
-
-enum tmc_cooler_lv_enum {
-	TMC_COOLER_LV0 = 0,
-	TMC_COOLER_LV1,
-	TMC_COOLER_LV2,
-	TMC_COOLER_LV3,
-	TMC_COOLER_LV4,
-	TMC_COOLER_LV5,
-	TMC_COOLER_LV6,
-	TMC_COOLER_LV7,
-	TMC_COOLER_LV8,
-};
-
-enum tmc_overheated_rat_enum {
-	TMC_OVERHEATED_LTE = 0,
-	TMC_OVERHEATED_NR,
-};
-
-enum tmc_tx_pwr_event_enum {
-	TMC_TW_PWR_VOLTAGE_LOW_EVENT = 0,
-	TMC_TW_PWR_LOW_BATTERY_EVENT,
-	TMC_TW_PWR_OVER_CURRENT_EVENT,
-	/* reserved for reduce 2G/3G/4G/C2K max TX power for certain value */
-	TMC_TW_PWR_REDUCE_OTHER_MAX_TX_EVENT,
-	/* reserved for reduce 5G max TX power for certain value */
-	TMC_TW_PWR_REDUCE_NR_MAX_TX_EVENT,
-	TMC_TW_PWR_EVENT_MAX_NUM,
-};
 
 #if FEATURE_THERMAL_DIAG
 /*
@@ -417,7 +356,8 @@ static void clmutt_cooler_param_reset(unsigned long mdoff_state)
 	}
 }
 
-static unsigned int clmutt_level_selection(int lv, unsigned int type)
+/*BSP.Charge - 2020.11.25 - Config thermal framework - start*/
+unsigned int clmutt_level_selection(int lv, unsigned int type)
 {
 	unsigned int ctrl_lv = 0;
 
@@ -458,12 +398,13 @@ static unsigned int clmutt_level_selection(int lv, unsigned int type)
 		? ctrl_lv | TMC_COOLER_LV_RAT_NR
 		: ctrl_lv | TMC_COOLER_LV_RAT_LTE;
 
-	mtk_cooler_mutt_dprintk(
+	mtk_cooler_mutt_dprintk_always(
 		"[%s] type(%d) lv(%d):ctrl_lv: 0x%08x\n",
 		__func__, type, lv, ctrl_lv);
 
 	return ctrl_lv;
 }
+/*BSP.Charge - 2020.11.25 - Config thermal framework - end*/
 
 static int clmutt_send_tmc_cmd(unsigned int cmd)
 {

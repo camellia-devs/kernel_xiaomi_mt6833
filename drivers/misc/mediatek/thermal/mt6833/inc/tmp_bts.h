@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2018 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -45,6 +46,12 @@
 
 #define BTSMDPA_RAP_ADC_CHANNEL		AUX_IN1_NTC /* default is 1 */
 
+/* BSP.Charge - 2020.11.16 - Config thermal framework - start */
+#define BTS_BLKNTC_RAP_PULL_UP_R	100000 /* PULL UP resister */
+#define BTS_BLKNTC_TAP_OVER_CRITICAL_LOW 4397119 /* 40 DEG */
+#define BTS_BLKNTC_RAP_PULL_UP_VOLTAGE	1800 /* PULL UP VOLTAGE */
+#define BTS_BLKNTC_RAP_NTC_TABLE	6 /* default is ncp 15wf104f03rc 100k */
+/* BSP.Charge - 2020.11.16 - Config thermal framework - end */
 
 #define BTSNRPA_RAP_PULL_UP_R		100000	/* 100K,pull up resister */
 #define BTSNRPA_TAP_OVER_CRITICAL_LOW	4397119	/* base on 100K NTC temp
