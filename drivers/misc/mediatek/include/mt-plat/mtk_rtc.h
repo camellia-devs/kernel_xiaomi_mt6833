@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,7 +16,9 @@
 #define MTK_RTC_H
 
 #include <linux/rtc.h>
-
+//BSP.System - 2020.12.02 - adb reboot ftm begin
+extern void rtc_mark_ftm(void);
+//BSP.System - 2020.12.02 - adb reboot ftm end
 enum rtc_gpio_user_t {
 	RTC_GPIO_USER_WIFI = 8,
 	RTC_GPIO_USER_GPS = 9,

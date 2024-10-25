@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -140,7 +141,11 @@ struct charger_ops {
 
 	/* charger type detection */
 	int (*enable_chg_type_det)(struct charger_device *dev, bool en);
-
+	/* BSP.Charge - 2020.11.14 - enable 18W charging start */
+#ifdef CONFIG_MTK_SOFT_HVDCP_2
+	int (*rerun_apsd)(struct charger_device *chg_dev, bool en);
+#endif
+	/* BSP.Charge - 2020.11.14 - enable 18W charging end */
 	/* run AICL */
 	int (*run_aicl)(struct charger_device *dev, u32 *uA);
 
