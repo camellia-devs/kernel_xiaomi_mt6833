@@ -126,7 +126,7 @@ static void kbase_context_free(struct kbase_context *kctx)
 
 static const struct kbase_context_init context_init[] = {
 	{NULL, kbase_context_free, NULL},
- 	{kbase_context_common_init, kbase_context_common_term, NULL},
+	{kbase_context_common_init, kbase_context_common_term, NULL},
 	{ kbase_dma_fence_init, kbase_dma_fence_term,
 	  "DMA fence initialization failed" },
 	{ kbase_context_mem_pool_group_init, kbase_context_mem_pool_group_term,
