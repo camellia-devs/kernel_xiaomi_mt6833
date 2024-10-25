@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010 MediaTek, Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * Author: Terry Chang <terry.chang@mediatek.com>
  *
@@ -15,6 +16,8 @@
  */
 
 #include "kpd.h"
+#include "mt6833/hal_kpd.h"
+#include "mt6853/hal_kpd.h"
 #ifdef CONFIG_PM_SLEEP
 #include <linux/pm_wakeup.h>
 #endif
@@ -31,7 +34,7 @@
 struct timer_list Long_press_key_timer;
 atomic_t vol_down_long_press_flag = ATOMIC_INIT(0);
 #endif
-
+extern void long_press_reboot(unsigned long long_press_is_reboot);
 int kpd_klog_en;
 void __iomem *kp_base;
 static unsigned int kp_irqnr;
@@ -39,6 +42,7 @@ struct input_dev *kpd_input_dev;
 static struct dentry *kpd_droot;
 static struct dentry *kpd_dklog;
 unsigned long call_status;
+unsigned long long_press_is_reboot = 1;
 static bool kpd_suspend;
 static unsigned int kp_irqnr;
 static u32 kpd_keymap[KPD_NUM_KEYS];
@@ -105,10 +109,38 @@ static ssize_t kpd_call_state_show(struct device_driver *ddri, char *buf)
 }
 
 static DRIVER_ATTR_RW(kpd_call_state);
+
+//BSP.System - 2020.11.25 - diable lp sys reset begin
+static ssize_t kpd_long_press_is_reboot_store(struct device_driver *ddri,
+		const char *buf, size_t count)
+{
+	int ret;
+
+	ret = kstrtoul(buf, 10, &long_press_is_reboot);
+	if (ret) {
+		kpd_print("kpd_long_press: Invalid value\n");
+		return -EINVAL;
+	}
+	long_press_reboot(long_press_is_reboot);
+
+	return count;
+}
+
+static ssize_t kpd_long_press_is_reboot_show(struct device_driver *ddri, char *buf)
+{
+	ssize_t res;
+
+	res = snprintf(buf, PAGE_SIZE, "%ld\n", long_press_is_reboot);
+	return res;
+}
+
+static DRIVER_ATTR(kpd_long_press_is_reboot, 0664, kpd_long_press_is_reboot_show, kpd_long_press_is_reboot_store);
+
 static struct driver_attribute *kpd_attr_list[] = {
 	&driver_attr_kpd_call_state,
+	&driver_attr_kpd_long_press_is_reboot,
 };
-
+//BSP.System - 2020.11.25 - diable lp sys reset  end
 
 static int kpd_create_attr(struct device_driver *driver)
 {

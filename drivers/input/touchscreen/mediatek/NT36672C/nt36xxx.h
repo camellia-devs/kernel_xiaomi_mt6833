@@ -1,8 +1,9 @@
 /*
  * Copyright (C) 2010 - 2018 Novatek, Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
- * $Revision: 46000 $
- * $Date: 2019-06-12 14:25:52 +0800 (週三, 12 六月 2019) $
+ * $Revision: 63020 $
+ * $Date: 2020-05-26 16:16:35 +0800 (周二, 26 5月 2020) $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,13 +17,14 @@
  *
  */
 #ifndef _LINUX_NVT_TOUCH_H
-#define	_LINUX_NVT_TOUCH_H
+#define _LINUX_NVT_TOUCH_H
 
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/of.h>
 #include <linux/spi/spi.h>
 #include <linux/uaccess.h>
+#include <linux/hqsysfs.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
@@ -40,46 +42,55 @@
 #endif
 
 #define NVT_DEBUG 1
-
+/*BSP.Tp - 2020.11.05 -add NVT_LOCKDOWN - start*/
+#define NVT_LOCKDOWN 1
+/*BSP.Tp - 2020.11.05 -add NVT_LOCKDOWN, end*/
 //---GPIO number---
 #define NVTTOUCH_RST_PIN 980
 #define NVTTOUCH_INT_PIN 943
-
+/*BSP.Tp - 2020.11.05 -add NVT_LOCKDOWN - start*/
+#define TP_LOCKDOWN_INFO "tp_lockdown_info"
+#if NVT_LOCKDOWN
+int32_t nvt_proc_tp_lockdown_info(void);
+void nvt_lockdown_proc_deinit(void);
+#endif
+/*BSP.Tp - 2020.11.05 -add NVT_LOCKDOWN, end*/
 
 //---INT trigger mode---
 //#define IRQ_TYPE_EDGE_RISING 1
 //#define IRQ_TYPE_EDGE_FALLING 2
 #define INT_TRIGGER_TYPE IRQ_TYPE_EDGE_RISING
 
-//---GPIO pin mode---
-#define PINCTRL_STATE_SPI_DEFAULT   "gt9896s_spi_mode"
 
 //---SPI driver info.---
-#define NVT_SPI_NAME "novatek,NVT-ts-spi"
+#define NVT_SPI_NAME "NVT-ts"
 
 #if NVT_DEBUG
-#define NVT_LOG(fmt, args...)    pr_info("[%s] %s %d: " fmt, NVT_SPI_NAME, __func__, __LINE__, ##args)
+#define NVT_LOG(fmt, args...)    pr_err("[%s] %s %d: " fmt, NVT_SPI_NAME, __func__, __LINE__, ##args)
 #else
-#define NVT_LOG(fmt, args...)    pr_debug("[%s] %s %d: " fmt, NVT_SPI_NAME, __func__, __LINE__, ##args)
+#define NVT_LOG(fmt, args...)    pr_info("[%s] %s %d: " fmt, NVT_SPI_NAME, __func__, __LINE__, ##args)
 #endif
-#define NVT_ERR(fmt, args...)    pr_info("[%s] %s %d: " fmt, NVT_SPI_NAME, __func__, __LINE__, ##args)
+#define NVT_ERR(fmt, args...)    pr_err("[%s] %s %d: " fmt, NVT_SPI_NAME, __func__, __LINE__, ##args)
 
 //---Input device info.---
 #define NVT_TS_NAME "NVTCapacitiveTouchScreen"
 
-
+#define NVT_IRQ_SWITCH
 //---Touch info.---
 #define TOUCH_DEFAULT_MAX_WIDTH 1080
 #define TOUCH_DEFAULT_MAX_HEIGHT 2400
 #define TOUCH_MAX_FINGER_NUM 10
 #define TOUCH_KEY_NUM 0
+#define	WAKEUP_OFF		0x04
+#define	WAKEUP_ON		0x05
+extern bool nvt_gesture_flag;
 #if TOUCH_KEY_NUM > 0
 extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 #endif
 #define TOUCH_FORCE_NUM 1000
 
 /* Enable only when module have tp reset pin and connected to host */
-#define NVT_TOUCH_SUPPORT_HW_RST 0
+#define NVT_TOUCH_SUPPORT_HW_RST 1
 
 //---Customerized func.---
 #define NVT_TOUCH_PROC 1
@@ -87,20 +98,27 @@ extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 #define NVT_TOUCH_MP 1
 #define MT_PROTOCOL_B 1
 #define WAKEUP_GESTURE 1
+#define TP_SELFTEST 1
+#if	TP_SELFTEST
+extern	int32_t	nvt_tp_selftest_proc_init(void);
+extern	void	nvt_tp_selftest_proc_deinit(void);
+#endif
 #if WAKEUP_GESTURE
 extern const uint16_t gesture_key_array[];
 #endif
 #define BOOT_UPDATE_FIRMWARE 1
-#define BOOT_UPDATE_FIRMWARE_NAME novatek_firmware
-#define MP_UPDATE_FIRMWARE_NAME   "novatek_ts_mp.bin"
+/*BSP.TP - add tp compare - 20201116 - Start*/
+extern char *BOOT_UPDATE_FIRMWARE_NAME;
+extern char *MP_UPDATE_FIRMWARE_NAME;
+/*BSP.TP - add tp compare - 20201116 - End*/
 #define POINT_DATA_CHECKSUM 1
 #define POINT_DATA_CHECKSUM_LEN 65
-extern char novatek_firmware[25];
 
 //---ESD Protect.---
 #define NVT_TOUCH_ESD_PROTECT 0
 #define NVT_TOUCH_ESD_CHECK_PERIOD 1500	/* ms */
 #define NVT_TOUCH_WDT_RECOVERY 1
+#define NVT_TOUCH_ESD_DISP_RECOVERY 1
 
 struct nvt_ts_data {
 	struct spi_device *client;
@@ -134,38 +152,47 @@ struct nvt_ts_data {
 	uint8_t carrier_system;
 	uint8_t hw_crc;
 	uint16_t nvt_pid;
-	uint8_t rbuf[1025];
+	uint8_t *rbuf;
 	uint8_t *xbuf;
 	struct mutex xbuf_lock;
 	bool irq_enabled;
+	#ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
+	bool palm_sensor_changed;
+	bool palm_sensor_switch;
+	#endif
+/*BSP.Tp - 2020.11.05 -add NVT_LOCKDOWN - start*/
+	char lockdowninfo[17];
+/*BSP.Tp - 2020.11.05 -add NVT_LOCKDOWN - end*/
 #ifdef CONFIG_MTK_SPI
 	struct mt_chip_conf spi_ctrl;
 #endif
 #ifdef CONFIG_SPI_MT65XX
-	struct mtk_chip_config spi_ctrl;
+    struct mtk_chip_config spi_ctrl;
 #endif
+/*BSP.TP add nvt_irq modified in 20201111.Start*/
+	spinlock_t irq_lock;
 };
 
 #if NVT_TOUCH_PROC
-struct nvt_flash_data {
+struct nvt_flash_data{
 	rwlock_t lock;
 };
 #endif
 
 typedef enum {
-	RESET_STATE_INIT = 0xA0,	// IC reset
-	RESET_STATE_REK,	// ReK baseline
+	RESET_STATE_INIT = 0xA0,// IC reset
+	RESET_STATE_REK,		// ReK baseline
 	RESET_STATE_REK_FINISH,	// baseline is ready
 	RESET_STATE_NORMAL_RUN,	// normal run
-	RESET_STATE_MAX = 0xAF
+	RESET_STATE_MAX  = 0xAF
 } RST_COMPLETE_STATE;
 
 typedef enum {
-	EVENT_MAP_HOST_CMD = 0x50,
-	EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE = 0x51,
-	EVENT_MAP_RESET_COMPLETE = 0x60,
-	EVENT_MAP_FWINFO = 0x78,
-	EVENT_MAP_PROJECTID = 0x9A,
+    EVENT_MAP_HOST_CMD                      = 0x50,
+    EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE   = 0x51,
+    EVENT_MAP_RESET_COMPLETE                = 0x60,
+    EVENT_MAP_FWINFO                        = 0x78,
+    EVENT_MAP_PROJECTID                     = 0x9A,
 } SPI_EVENT_MAP;
 
 //---SPI READ/WRITE---
@@ -174,10 +201,11 @@ typedef enum {
 
 #define DUMMY_BYTES (1)
 #define NVT_TRANSFER_LEN	(63*1024)
+#define NVT_READ_LEN		(2*1024)
 
 typedef enum {
 	NVTWRITE = 0,
-	NVTREAD = 1
+	NVTREAD  = 1
 } NVT_SPI_RW;
 
 //---extern structures---
@@ -202,18 +230,6 @@ int32_t nvt_set_page(uint32_t addr);
 int32_t nvt_write_addr(uint32_t addr, uint8_t data);
 #if NVT_TOUCH_ESD_PROTECT
 extern void nvt_esd_check_enable(uint8_t enable);
-#endif				/* #if NVT_TOUCH_ESD_PROTECT */
-#if NVT_TOUCH_MP
-extern int32_t nvt_mp_proc_init(void);
-extern void nvt_mp_proc_deinit(void);
-#endif
-#if NVT_TOUCH_EXT_PROC
-extern int32_t nvt_extra_proc_init(void);
-extern void nvt_extra_proc_deinit(void);
-#endif
-#if BOOT_UPDATE_FIRMWARE
-static struct workqueue_struct *nvt_fwu_wq;
-extern void Boot_Update_Firmware(struct work_struct *work);
-#endif
+#endif /* #if NVT_TOUCH_ESD_PROTECT */
 
-#endif				/* _LINUX_NVT_TOUCH_H */
+#endif /* _LINUX_NVT_TOUCH_H */

@@ -167,5 +167,9 @@ config TOUCHSCREEN_MTK_GT9157
 	  module will be called
 
 source "drivers/input/touchscreen/mediatek/GT9157/Kconfig"
+# BSP.TP - 2020.10.29 - Add for TP bring up
+source "drivers/input/touchscreen/mediatek/NT36672C/Kconfig"
+#BSP.TP - 2020.12.28 - Add for palm senser
+source "drivers/input/touchscreen/mediatek/xiaomi/Kconfig"
 
 endif
