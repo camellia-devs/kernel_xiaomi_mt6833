@@ -549,10 +549,8 @@ int m4u_alloc_pte(struct m4u_domain_t *domain,
 	for (retry_cnt = 0; retry_cnt < 5; retry_cnt++) {
 		pte_new_va = kmem_cache_zalloc(gM4u_pte_kmem,
 					       GFP_KERNEL | GFP_DMA);
-		if (likely(pte_new_va)) {
-			kmemleak_ignore(pte_new_va); //ignored by kmemleak tool
+		if (likely(pte_new_va))
 			break;
-		}
 	}
 	write_lock_domain(domain);
 	if (unlikely(!pte_new_va)) {
