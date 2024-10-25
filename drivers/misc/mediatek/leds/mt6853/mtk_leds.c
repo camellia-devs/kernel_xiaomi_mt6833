@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -23,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/sched/clock.h>
-
 
 #ifdef CONFIG_MTK_AAL_SUPPORT
 #include <ddp_aal.h>
@@ -868,6 +868,7 @@ void mt_mt65xx_led_set(struct led_classdev *led_cdev, enum led_brightness level)
 	int trans_level;
 	struct mt65xx_led_data *led_data =
 	    container_of(led_cdev, struct mt65xx_led_data, cdev);
+
 	/* unsigned long flags; */
 	/* spin_lock_irqsave(&leds_lock, flags); */
 
@@ -895,6 +896,7 @@ void mt_mt65xx_led_set(struct led_classdev *led_cdev, enum led_brightness level)
 				(((1 << 8) - 1) / 2))
 				/ ((1 << 8) - 1));
 	disp_pq_notify_backlight_changed(trans_level);
+
 #ifdef CONFIG_MTK_AAL_SUPPORT
 	disp_aal_notify_backlight_changed(trans_level);
 #else
