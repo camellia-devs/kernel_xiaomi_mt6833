@@ -67,11 +67,7 @@ static void __iomem *gpio_base;
 #endif	/* CONFIG_OF */
 
 /* TODO: marked this after driver is ready */
-#if defined(CONFIG_MACH_MT6877)
-#define SRCLKEN_RC_BRINGUP			1
-#else
 #define SRCLKEN_RC_BRINGUP			0
-#endif /* for bring-up */
 /* Pwrap Register */
 #define SRCLKEN_RCINF_STA_0			(0x1C4)
 #define SRCLKEN_RCINF_STA_1			(0x1C8)
@@ -101,9 +97,6 @@ static void __iomem *gpio_base;
 #if defined(CONFIG_MACH_MT6833)
 #define PWRAP_DTS_NODE_NAME			"mediatek,mt6833-pwrap"
 #define SCPSYS_DTS_NODE_NAME			"mediatek,mt6833-scpsys"
-#elif defined(CONFIG_MACH_MT6877)
-#define PWRAP_DTS_NODE_NAME			"mediatek,mt6877-pwrap"
-#define SCPSYS_DTS_NODE_NAME			"mediatek,mt6877-scpsys"
 #else
 #define PWRAP_DTS_NODE_NAME			"mediatek,mt6853-pwrap"
 #define SCPSYS_DTS_NODE_NAME			"mediatek,mt6853-scpsys"
