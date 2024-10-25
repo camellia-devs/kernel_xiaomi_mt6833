@@ -31,8 +31,7 @@
 static const char *const mt6853_spk_type_str[] = {MTK_SPK_NOT_SMARTPA_STR,
 						  MTK_SPK_RICHTEK_RT5509_STR,
 						  MTK_SPK_MEDIATEK_MT6660_STR,
-						  MTK_SPK_NXP_TFA98XX_STR,
-						  MTK_SPK_MEDIATEK_RT5512_STR
+						  MTK_SPK_NXP_TFA98XX_STR
 						  };
 static const char *const
 	mt6853_spk_i2s_type_str[] = {MTK_SPK_I2S_0_STR,
@@ -1056,13 +1055,6 @@ static struct snd_soc_dai_link mt6853_mt6359_dai_links[] = {
 		.stream_name = "DSP_Capture_Raw",
 		.cpu_dai_name = "audio_task_capture_raw_dai",
 		.platform_name = "snd_audio_dsp",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
-	},
-	{
-		.name = "DSP_Playback_Fm_Adsp",
-		.stream_name = "DSP_Playback_Fm_Adsp",
-		.cpu_dai_name = "audio_task_fm_adsp_dai",
 		.codec_name = "snd-soc-dummy",
 		.codec_dai_name = "snd-soc-dummy-dai",
 	},

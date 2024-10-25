@@ -78,6 +78,7 @@ enum {
 	SUPPLY_SEQ_CLK_BUF,
 	SUPPLY_SEQ_AUD_GLB,
 	SUPPLY_SEQ_CLKSQ,
+	SUPPLY_SEQ_VOW_AUD_LPW,
 	SUPPLY_SEQ_AUD_VOW,
 	SUPPLY_SEQ_VOW_CLK,
 	SUPPLY_SEQ_VOW_LDO,
@@ -796,20 +797,12 @@ int mt6358_set_mtkaif_calibration_phase(struct snd_soc_component *cmpnt,
 
 static int get_auxadc_audio(void)
 {
-#if !defined(CONFIG_FPGA_EARLY_PORTING)
 	return pmic_get_auxadc_value(AUXADC_LIST_HPOFS_CAL);
-#else
-	return 1;
-#endif
 }
 
 static int get_accdet_auxadc(void)
 {
-#if !defined(CONFIG_FPGA_EARLY_PORTING)
 	return pmic_get_auxadc_value(AUXADC_LIST_ACCDET);
-#else
-	return 1;
-#endif
 }
 
 /* dl pga gain */
@@ -2663,6 +2656,47 @@ static int mt_vow_ldo_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int mt_vow_aud_lpw_event(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *kcontrol,
+				int event)
+{
+	struct snd_soc_component *cmpnt = snd_soc_dapm_to_component(w->dapm);
+	struct mt6358_priv *priv = snd_soc_component_get_drvdata(cmpnt);
+
+	dev_info(priv->dev, "%s(), event 0x%x, MIC_TYPE %x\n",
+		 __func__, event, priv->mux_select[MUX_MIC_TYPE]);
+
+	if (!(IS_VOW_AMIC_BASE(priv->mux_select[MUX_MIC_TYPE]))) {
+		dev_info(priv->dev, "%s(), no AMIC, return\n", __func__);
+		return 0;
+	}
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		/* add delay for RC Calibration */
+		usleep_range(1000, 1200);
+		/* Enable audio uplink LPW mode */
+		/* Enable Audio ADC 1st Stage LPW */
+		/* Enable Audio ADC 2nd & 3rd LPW */
+		/* Enable Audio ADC flash Audio ADC flash */
+		regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON2,
+				   0x0039, 0x0039);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		/* Disable audio uplink LPW mode */
+		/* Disable Audio ADC 1st Stage LPW */
+		/* Disable Audio ADC 2nd & 3rd LPW */
+		/* Disable Audio ADC flash Audio ADC flash */
+		regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON2,
+				   0x0039, 0x0000);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int mt_vow_out_event(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol,
 			    int event)
@@ -3167,15 +3201,6 @@ static int mt6358_vow_amic_enable(struct mt6358_priv *priv)
 		regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON3,
 				   0x1 << 12, 0x0);
 	}
-	usleep_range(1000, 1200);
-	/* Enable audio uplink LPW mode */
-	/* Enable Audio ADC 1st Stage LPW */
-	/* Enable Audio ADC 2nd & 3rd LPW */
-	/* Enable Audio ADC flash Audio ADC flash */
-	regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON2,
-			   0x0039, 0x0039);
-	dev_info(priv->dev, "%s(), mt_vow_aud_lpw_enable 0x39\n",
-		 __func__);
 	return 0;
 }
 
@@ -3186,14 +3211,7 @@ static int mt6358_vow_amic_disable(struct mt6358_priv *priv)
 
 	dev_info(priv->dev, "%s(), mux, mic %u, pga l %u\n",
 		 __func__, mic_type, mux_pga_l);
-	/* Disable audio uplink LPW mode */
-	/* Disable Audio ADC 1st Stage LPW */
-	/* Disable Audio ADC 2nd & 3rd LPW */
-	/* Disable Audio ADC flash Audio ADC flash */
-	regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON2,
-			   0x0039, 0x0000);
-	dev_info(priv->dev, "%s(), mt_vow_aud_lpw_disable 0x0\n",
-		 __func__);
+
 	/* L ADC input sel : off, disable L ADC */
 	regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON0,
 			   0xf000, 0x0000);
@@ -3450,6 +3468,10 @@ static const struct snd_soc_dapm_widget mt6358_dapm_widgets[] = {
 			      MT6358_AUD_TOP_CKPDN_CON0,
 			      RG_AUDIF_CK_PDN_SFT, 1, NULL, 0),
 	/* vow */
+	SND_SOC_DAPM_SUPPLY_S("VOW_AUD_LPW", SUPPLY_SEQ_VOW_AUD_LPW,
+			      SND_SOC_NOPM, 0, 0,
+			      mt_vow_aud_lpw_event,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S("AUD_VOW", SUPPLY_SEQ_AUD_VOW,
 			      MT6358_AUDENC_ANA_CON1,
 			      RG_AUDIO_VOW_EN_SFT, 0, NULL, 0),
@@ -3750,6 +3772,7 @@ static const struct snd_soc_dapm_route mt6358_dapm_routes[] = {
 		{"VOW TX", NULL, "AUDGLB"},
 		{"VOW TX", NULL, "AUD_CK"},
 		/*{"VOW TX", NULL, "CLKSQ Audio"},*/
+		{"VOW TX", NULL, "VOW_AUD_LPW"},
 		{"VOW TX", NULL, "VOW_CLK"},
 		{"VOW TX", NULL, "AUD_VOW"},
 		{"VOW TX", NULL, "VOW_LDO"},
@@ -5930,8 +5953,9 @@ static int mtk_calculate_impedance_formula(int pcm_offset, int aux_diff)
 	/* R = V /I */
 	/* V = auxDiff * (1800mv /auxResolution)  /TrimBufGain */
 	/* I =  pcmOffset * DAC_constant * Gsdm * Gibuf */
+	long mul_val = pcm_offset * aux_diff;
 
-	return DIV_ROUND_CLOSEST(3600000 / pcm_offset * aux_diff, 7832);
+	return DIV_ROUND_CLOSEST(3600000 / mul_val, 7832);
 }
 
 static int calculate_impedance(struct mt6358_priv *priv,
@@ -6678,19 +6702,13 @@ static int get_hp_current_calibrate_val(struct mt6358_priv *priv)
 
 	/* 2. set RG_OTP_RD_SW */
 	regmap_update_bits(priv->regmap, MT6358_OTP_CON11, 0x0001, 0x0001);
-#if defined(CONFIG_SND_SOC_MT6366)
-	/* 3. set EFUSE addr */
-	/* HPDET_COMP[6:0] @ efuse bit 1880 ~ 1886 */
-	/* HPDET_COMP_SIGN @ efuse bit 1887 */
-	/* 1880 / 8 = 235 --> 0xeb */
-	regmap_update_bits(priv->regmap, MT6358_OTP_CON0, 0xff, 0xeb);
-#else
+
 	/* 3. set EFUSE addr */
 	/* HPDET_COMP[6:0] @ efuse bit 1696 ~ 1702 */
 	/* HPDET_COMP_SIGN @ efuse bit 1703 */
 	/* 1696 / 8 = 212 --> 0xd4 */
 	regmap_update_bits(priv->regmap, MT6358_OTP_CON0, 0xff, 0xd4);
-#endif
+
 	/* 4. Toggle RG_OTP_RD_TRIG */
 	regmap_read(priv->regmap, MT6358_OTP_CON8, &ret);
 	if (ret == 0)
@@ -7718,7 +7736,6 @@ static int mt6358_platform_driver_remove(struct platform_device *pdev)
 
 static const struct of_device_id mt6358_of_match[] = {
 	{.compatible = "mediatek,mt6358-sound",},
-	{.compatible = "mediatek,mt6366-sound",},
 	{}
 };
 MODULE_DEVICE_TABLE(of, mt6358_of_match);

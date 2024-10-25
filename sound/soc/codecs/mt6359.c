@@ -3,6 +3,7 @@
 // mt6359.c  --  mt6359 ALSA SoC audio codec driver
 //
 // Copyright (c) 2018 MediaTek Inc.
+// Copyright (C) 2021 XiaoMi, Inc.
 // Author: KaiChieh Chuang <kaichieh.chuang@mediatek.com>
 
 #include <linux/platform_device.h>
@@ -2440,8 +2441,10 @@ static int mt_mic_bias_1_event(struct snd_soc_dapm_widget *w,
 			regmap_write(priv->regmap,
 				     MT6359_AUDENC_ANA_CON16, 0x0160);
 		else
+			/* BSP.audio - 2020.11.12 - modify to micbias of headphone start */
 			regmap_write(priv->regmap,
-				     MT6359_AUDENC_ANA_CON16, 0x0060);
+				     MT6359_AUDENC_ANA_CON16, 0x0071);
+			/* BSP.audio - 2020.11.12 - modify to micbias of headphone end */
 
 		/* vow low power select */
 		regmap_update_bits(priv->regmap, MT6359_AUDENC_ANA_CON16,
