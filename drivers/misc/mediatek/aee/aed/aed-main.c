@@ -44,7 +44,6 @@
 #include <linux/rtc.h>
 #include "aed.h"
 #include <linux/highmem.h>
-#include <mt-plat/slog.h>
 
 struct aee_req_queue {
 	struct list_head list;
@@ -280,7 +279,7 @@ static ssize_t msg_copy_to_user(const char *prefix, char *msg, char __user *buf,
 
 	len = ((struct AE_Msg *) msg_tmp)->len + sizeof(struct AE_Msg);
 
-	if ((*f_pos < 0) || (*f_pos >= len)) {
+	if (*f_pos >= len) {
 		ret = 0;
 		goto out;
 	}
@@ -441,9 +440,6 @@ static void ke_gen_userbacktrace_msg(void)
 	char *data;
 	int userinfo_len = 0;
 
-	if (aed_dev.kerec.lastlog->userthread_stack.StackLength < 0)
-		return;
-
 	userinfo_len = aed_dev.kerec.lastlog->userthread_stack.StackLength +
 		sizeof(pid_t)+sizeof(int);
 	rep_msg = msg_create(&aed_dev.kerec.msg, MaxStackSize);
@@ -484,9 +480,6 @@ static void ke_gen_usermaps_msg(void)
 	struct AE_Msg *rep_msg;
 	char *data;
 	int userinfo_len = 0;
-
-	if (aed_dev.kerec.lastlog->userthread_maps.Userthread_mapsLength < 0)
-		return;
 
 	userinfo_len =
 		aed_dev.kerec.lastlog->userthread_maps.Userthread_mapsLength +
@@ -1066,11 +1059,6 @@ static ssize_t aed_ee_write(struct file *filp, const char __user *buf,
 		return -1;
 	}
 
-	if (!buf) {
-		pr_info("%s: ERR, aed_write buf=NULL\n", __func__);
-		return -1;
-	}
-
 	rsize = copy_from_user(&msg, buf, count);
 	if (rsize != 0) {
 		pr_info("%s: ERR, copy_from_user rsize=%d\n", __func__, rsize);
@@ -1207,8 +1195,6 @@ static int current_ke_show(struct seq_file *m, void *p)
 	ke_buffer = m->private;
 	if (ke_buffer == NULL)
 		return 0;
-	if (ke_buffer->size < 0)
-		return 0;
 	if ((unsigned long)p >=
 			(unsigned long)ke_buffer->data + ke_buffer->size)
 		return 0;
@@ -1280,10 +1266,6 @@ static ssize_t aed_ke_write(struct file *filp, const char __user *buf,
 	/* the request must be an * AE_Msg buffer */
 	if (count != sizeof(struct AE_Msg)) {
 		pr_info("ERR: aed_write count=%zx\n", count);
-		return -1;
-	}
-	if (!buf) {
-		pr_info("ERR: aed_write buf=NULL\n");
 		return -1;
 	}
 
@@ -1556,10 +1538,6 @@ static long aed_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int aee_mode_tmp = 0;
 	int aee_force_exp_tmp = 0;
 
-	if (!arg && (cmd != AEEIOCTL_DAL_CLEAN)) {
-		pr_info("ERR: %s arg=NULL\n", __func__);
-		return -EINVAL;
-	}
 	if (down_interruptible(&aed_dal_sem) < 0)
 		return -ERESTARTSYS;
 
@@ -2285,10 +2263,6 @@ int DumpThreadNativeInfo(struct aee_oops *oops)
 							(MaxStackSize-1);
 	oops->userthread_stack.StackLength = length;
 
-	if (!userstack_start) {
-		pr_info("ERR: %s userstack_start = NULL\n", __func__);
-		return 0;
-	}
 
 	ret = copy_from_user((void *)(oops->userthread_stack.Userthread_Stack),
 			(const void __user *)(userstack_start), length);
@@ -2315,10 +2289,6 @@ int DumpThreadNativeInfo(struct aee_oops *oops)
 		     (MaxStackSize-1)) ? (userstack_end - userstack_start) :
 							(MaxStackSize-1);
 		oops->userthread_stack.StackLength = length;
-		if (!userstack_start) {
-			pr_info("ERR: %s userstack_start=NULL\n", __func__);
-			return 0;
-		}
 		ret = copy_from_user(
 			(void *)(oops->userthread_stack.Userthread_Stack),
 			(const void __user *)(userstack_start), length);
@@ -2344,11 +2314,6 @@ int DumpThreadNativeInfo(struct aee_oops *oops)
 		     (MaxStackSize-1)) ? (userstack_end - userstack_start) :
 			(MaxStackSize-1);
 		oops->userthread_stack.StackLength = length;
-
-		if (!userstack_start) {
-			pr_info("ERR: %s userstack_start = NULL\n", __func__);
-			return 0;
-		}
 		ret = copy_from_user(
 			(void *)(oops->userthread_stack.Userthread_Stack),
 			(const void __user *)(userstack_start), length);
@@ -2366,10 +2331,6 @@ static void kernel_reportAPI(const enum AE_DEFECT_ATTR attr, const int db_opt,
 	struct rtc_time tm;
 	struct timeval tv = { 0 };
 	int len;
-
-	if ((attr == AE_DEFECT_EXCEPTION) &&
-		(strstr(msg, "GPUHS") || strstr(module, "cache parity")))
-		slog("#$#kernel#@#%s#:%s", module, msg);
 
 	if ((aee_mode >= AEE_MODE_CUSTOMER_USER || (aee_mode ==
 		AEE_MODE_CUSTOMER_ENG && attr == AE_DEFECT_WARNING))
@@ -2444,9 +2405,6 @@ static void external_exception(const char *assert_type, const int *log,
 	struct rtc_time tm;
 	struct timeval tv = { 0 };
 	char trigger_time[60];
-
-	if (strstr(assert_type, "combo_bt") || strstr(assert_type, "combo_wifi"))
-		slog("#$#external#@#%s#%s", assert_type, detail);
 
 	if ((aee_mode >= AEE_MODE_CUSTOMER_USER) &&
 		(aee_force_exp == AEE_FORCE_EXP_NOT_SET))
