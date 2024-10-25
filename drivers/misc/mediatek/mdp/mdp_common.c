@@ -47,10 +47,6 @@
 #include <linux/mailbox_controller.h>
 #include <linux/module.h>
 
-#if IS_ENABLED(CONFIG_MTK_SVP_ON_MTEE_SUPPORT) || IS_ENABLED(CONFIG_MTK_CAM_GENIEZONE_SUPPORT)
-#include "tz_m4u.h"
-#endif
-
 #ifdef CMDQ_SECURE_PATH_SUPPORT
 #include <cmdq-sec.h>
 #endif
@@ -1248,7 +1244,7 @@ static s32 cmdq_mdp_setup_sec(struct cmdqCommandStruct *desc,
 			addr[i].instrIndex += addr[i].instrIndex / max_inst;
 
 			CMDQ_MSG("meta index change from:%u to:%u\n",
-				 idx, addr[i].instrIndex);
+				idx, addr[i].instrIndex);
 		}
 	}
 #endif
@@ -1286,7 +1282,6 @@ s32 cmdq_mdp_handle_sec_setup(struct cmdqSecDataStruct *secData,
 	void *addr_meta;
 	u32 addr_meta_size;
 	struct cmdq_client *cl;
-	s32 sec_id = -1;
 
 	/* set secure data */
 	handle->secStatus = NULL;
@@ -1363,33 +1358,17 @@ s32 cmdq_mdp_handle_sec_setup(struct cmdqSecDataStruct *secData,
 		secData->addrMetadataCount,
 		addr_meta);
 
-#if IS_ENABLED(CONFIG_MTK_SVP_ON_MTEE_SUPPORT)
-#ifdef CMDQ_ENG_SVP_MTEE_GROUP_BITS
-	if (handle->engineFlag & CMDQ_ENG_SVP_MTEE_GROUP_BITS) {
-		if (secData->extension & 0x1)
-			sec_id = SEC_ID_WFD;
-		else
-			sec_id = SEC_ID_SVP;
-		cmdq_sec_pkt_set_mtee(handle->pkt, true, sec_id);
-	}
-#endif
-#endif
-#if IS_ENABLED(CONFIG_MTK_CAM_GENIEZONE_SUPPORT)
-#ifdef CMDQ_ENG_ISP_MTEE_GROUP_BITS
-	if (handle->engineFlag & CMDQ_ENG_ISP_MTEE_GROUP_BITS) {
-		sec_id = SEC_ID_SEC_CAM;
-		cmdq_sec_pkt_set_mtee(handle->pkt, true, sec_id);
-	}
-#endif
-#endif
-	if (-1 == sec_id)
-		cmdq_sec_pkt_set_mtee(handle->pkt, false, sec_id);
-
-	CMDQ_LOG("[SEC] handle:%p mtee:%d dapc:%#llx(%#llx) port:%#llx(%#llx) sec_id:%d\n",
+#ifdef CMDQ_ENG_MTEE_GROUP_BITS
+	if (handle->engineFlag & CMDQ_ENG_MTEE_GROUP_BITS)
+		cmdq_sec_pkt_set_mtee(handle->pkt, true);
+	else
+		cmdq_sec_pkt_set_mtee(handle->pkt, false);
+	CMDQ_LOG("handle:%p mtee:%d dapc:%#llx(%#llx) port:%#llx(%#llx)\n",
 		handle,
 		((struct cmdq_sec_data *)handle->pkt->sec_data)->mtee,
 		handle->secData.enginesNeedDAPC, dapc,
-		handle->secData.enginesNeedPortSecurity, port, sec_id);
+		handle->secData.enginesNeedPortSecurity, port);
+#endif
 
 	kfree(addr_meta);
 	return 0;
