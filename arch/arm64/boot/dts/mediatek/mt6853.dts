@@ -2,6 +2,7 @@
  * Mediatek's MT6853 SoC device tree source
  *
  * Copyright (C) 2019 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -960,8 +961,7 @@ page_owner=on loop.max_part=7";
 			<&infracfg_ao_clk CLK_IFRAO_CCIF1_MD>,
 			<&infracfg_ao_clk CLK_IFRAO_CCIF2_AP>,
 			<&infracfg_ao_clk CLK_IFRAO_CCIF2_MD>,
-			<&infracfg_ao_clk CLK_IFRAO_CCIF4_MD>,
-			<&infracfg_ao_clk CLK_IFRAO_CCIF5_MD>;
+			<&infracfg_ao_clk CLK_IFRAO_CCIF4_MD>;
 		clock-names = "scp-sys-md1-main",
 			"infra-dpmaif-clk",
 			"infra-dpmaif-blk-clk",
@@ -971,8 +971,7 @@ page_owner=on loop.max_part=7";
 			"infra-ccif1-md",
 			"infra-ccif2-ap",
 			"infra-ccif2-md",
-			"infra-ccif4-md",
-			"infra-ccif5-md";
+			"infra-ccif4-md";
 	};
 
 	radio_md_cfg:radio_md_cfg {
@@ -2237,7 +2236,7 @@ page_owner=on loop.max_part=7";
 		reg = <0 0x10800000 0 0x6000>, /* CFG */
 			<0 0x10840000 0 0x9000>, /* ITCM */
 			<0 0x10820000 0 0x8000>; /* DTCM */
-		system = <0 0x56000000 0 0xa00000>;
+		system = <0 0x56000000 0 0x900000>;
 		interrupts = <GIC_SPI 444 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 446 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 448 IRQ_TYPE_LEVEL_HIGH>;
@@ -2836,9 +2835,6 @@ page_owner=on loop.max_part=7";
 		mtk_spk_i2s_out = <3>;
 		mtk_spk_i2s_in = <0>;
 		/* mtk_spk_i2s_mck = <3>; */
-		mediatek,speaker-codec {
-			sound-dai = <&speaker_amp>;
-		};
 	};
 
 	/* feature : $enable $dl_mem $ul_mem $ref_mem $size */
@@ -2859,7 +2855,6 @@ page_owner=on loop.max_part=7";
 		mtk_dsp_fast = <0x5 0xffffffff 0xffffffff 0xffffffff 0x5000>;
 		mtk_dsp_ktv = <0x1 0x8 0x12 0xffffffff 0x10000>;
 		mtk_dsp_capture_raw = <0x1 0xffffffff 0xffffffff 0xffffffff 0x20000>;
-		mtk_dsp_fm = <0x0 0xffffffff 0x10 0xffffffff 0x10000>;
 		mtk_dsp_ver = <0x1>;
 		swdsp_smartpa_process_enable = <0x5>;
 		mtk_dsp_mem_afe = <0x1 0x40000>; /* always enable */
@@ -3196,9 +3191,7 @@ page_owner=on loop.max_part=7";
 #if defined(CONFIG_MTK_SEC_VIDEO_PATH_SUPPORT)
 			<&gce_mbox 4 0 CMDQ_THR_PRIO_4>,
 			<&gce_mbox 6 0 CMDQ_THR_PRIO_3>,
-			<&gce_mbox_sec 8 0 CMDQ_THR_PRIO_3>,
-			<&gce_mbox_sec 9 0 CMDQ_THR_PRIO_3>,
-			<&gce_mbox_sec 9 0 CMDQ_THR_PRIO_3>;
+			<&gce_mbox_sec 8 0 CMDQ_THR_PRIO_3>;
 #else
 			<&gce_mbox 4 0 CMDQ_THR_PRIO_4>,
 			<&gce_mbox 6 0 CMDQ_THR_PRIO_3>;
@@ -3212,9 +3205,7 @@ page_owner=on loop.max_part=7";
 #if defined(CONFIG_MTK_SEC_VIDEO_PATH_SUPPORT)
 			"CLIENT_SUB_CFG0",
 			"CLIENT_DSI_CFG0",
-			"CLIENT_SEC_CFG0",
-			"CLIENT_SEC_CFG1",
-			"CLIENT_SEC_CFG2";
+			"CLIENT_SEC_CFG0";
 #else
 			"CLIENT_SUB_CFG0",
 			"CLIENT_DSI_CFG0";
@@ -3292,8 +3283,7 @@ page_owner=on loop.max_part=7";
 			"MTK_DRM_OPT_HBM",
 			"MTK_DRM_OPT_VDS_PATH_SWITCH",
 			"MTK_DRM_OPT_LAYER_REC",
-			"MTK_DRM_OPT_CLEAR_LAYER",
-			"MTK_DRM_OPT_LFR";
+			"MTK_DRM_OPT_CLEAR_LAYER";
 
 		helper-value = <0>, /*MTK_DRM_OPT_STAGE*/
 			<1>, /*MTK_DRM_OPT_USE_CMDQ*/
@@ -3332,8 +3322,7 @@ page_owner=on loop.max_part=7";
 			<0>, /*MTK_DRM_OPT_HBM*/
 			<1>, /*MTK_DRM_OPT_VDS_PATH_SWITCH*/
 			<0>, /*MTK_DRM_OPT_LAYER_REC*/
-			<1>, /*MTK_DRM_OPT_CLEAR_LAYER*/
-			<0>; /*MTK_DRM_OPT_LFR*/
+			<1>; /*MTK_DRM_OPT_CLEAR_LAYER*/
 	};
 
 	disp_mutex0: disp_mutex@14001000 {
@@ -4708,10 +4697,7 @@ page_owner=on loop.max_part=7";
 	vdec@16000000 {
 		compatible = "mediatek,mt6853-vcodec-dec";
 		reg = <0 0x1602f000 0 0x1000>,		/* VDEC_SYS */
-			 <0 0x16029800 0 0x400>,		/* VDEC_UFO */
 			 <0 0x16020000 0 0x400>,		/* VDEC_VLD */
-			 <0 0x16021000 0 0x1000>,		/* VDEC_MC */
-			 <0 0x16023000 0 0x1000>,		/* VDEC_MV */
 			 <0 0x16025000 0 0x1000>;		/* VDEC_MISC */
 #ifdef CONFIG_MTK_IOMMU_V2
 		iommus = <&iommu0 M4U_PORT_L4_VDEC_MC_EXT>;
@@ -6067,15 +6053,6 @@ page_owner=on loop.max_part=7";
 
 	rt-pd-manager {
 		compatible = "mediatek,rt-pd-manager";
-	};
-};
-
-&i2c6 {
-	speaker_amp: speaker_amp@34 {
-		compatible = "mediatek,speaker_amp";
-		#sound-dai-cells = <0>;
-		reg = <0x34>;
-		status = "okay";
 	};
 };
 

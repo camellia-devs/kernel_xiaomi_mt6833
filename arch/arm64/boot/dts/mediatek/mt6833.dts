@@ -2,6 +2,7 @@
  * Mediatek's MT6833 SoC device tree source
  *
  * Copyright (C) 2020 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -242,8 +243,10 @@ page_owner=on loop.max_part=7";
 
 		backlight {
 			label = "lcd-backlight";
-			max-brightness = <255>;
-			led-bits = <8>;
+			/* BSP.LCM - 2020.12.16 - modify to set 2048 */
+			max-brightness = <2047>;
+			led-bits = <11>;
+			trans-bits = <11>;
 			default-state = "on";
 		};
 	};
@@ -686,6 +689,15 @@ page_owner=on loop.max_part=7";
 		mcu_disable=<0x0>;
 		infra_disable=<0x0>;
 	};
+/* BSP.System - 2020.11.3 - add swtp driver */
+	swtp: swtp {
+		compatible = "mediatek, swtp-eint";
+		swtp-gpio = <&pio 45 0>;
+	};
+/* BSP.System - 2020.11.3 - add swtp driver */
+	swtp: swtp {
+		compatible = "mediatek, swtp-eint";
+	};
 
 	infracfg_ao: infracfg_ao@10001000 {
 		compatible = "mediatek,infracfg_ao",
@@ -719,7 +731,11 @@ page_owner=on loop.max_part=7";
 	gauge_timer {
 		compatible = "mediatek,gauge_timer_service";
 	};
-
+/*BSP.System - 2020.11.2 - add simtray status*/
+	simtray {
+		compatible = "xiaomi,simtray-status";
+		status-gpio = <&pio 77 0>;
+	};
 #if (CONFIG_MTK_GAUGE_VERSION == 30)
 	#include "mediatek/bat_setting/mt6833_battery_prop.dtsi"
 #endif
@@ -796,6 +812,30 @@ page_owner=on loop.max_part=7";
 		/* Performance Mode */
 		mediatek,perf-crypto-vcore = <2>;
 	};
+/*BSP.System - 2020.11.5 - add board id*/
+	board_id: board_id {
+		compatible = "mediatek,board_id";
+	};
+/* BSP.LCM - 2020.11.27 - add for backlight ntc - start */
+	blk_thermal: blk_thermal {
+		compatible = "mediatek,blk_thermal_ntc";
+		io-channels = <&auxadc 3>;
+		io-channel-names = "blk_thermal-channel";
+		status = "okay";
+	};
+/* BSP.LCM - 2020.11.27 - add for backlight ntc - end */
+
+/* BSP.charge -11.20- modify eye map start */
+	usb_phy_tuning {
+		compatible = "mediatek,phy_tuning";
+		u2_vrt_ref_host = <7>;
+		u2_term_ref_host = <4>;
+		u2_enhance_host = <3>;
+		u2_vrt_ref_dev = <5>;
+		u2_term_ref_dev = <5>;
+		u2_enhance_dev = <3>;
+	};
+/* BSP.charge -11.20- modify eye map end */
 
 	ufs_mphy@11fa0000 {
 		compatible = "mediatek,ufs_mphy";
@@ -1447,9 +1487,15 @@ page_owner=on loop.max_part=7";
 	};
 
 	touch:touch {
-		compatible = "goodix,touch";
+		compatible = "novatek,NVT-ts-spi";
 	};
-
+	/*BSP.TP - 2020.12.28 - Add for palm senser start*/
+	xiaomi_touch{
+	compatible = "xiaomi-touch";
+	status = "ok";
+	touch,name = "xiaomi-touch";
+	};
+	/*BSP.TP - 2020.12.28 - Add for palm senser end*/
 	ap_ccif0@10209000 {
 		compatible = "mediatek,ap_ccif0";
 		reg = <0 0x10209000 0 0x1000>;
@@ -1457,7 +1503,8 @@ page_owner=on loop.max_part=7";
 	};
 
 	goodix_fp: fingerprint {
-		compatible = "mediatek,goodix-fp";
+		compatible = "mediatek,fpc1022_irq","mediatek,goodix-fp";
+		status = "okay";
 	};
 
 	accdet: accdet {
@@ -2702,9 +2749,6 @@ page_owner=on loop.max_part=7";
 		mtk_spk_i2s_out = <3>;
 		mtk_spk_i2s_in = <0>;
 		/* mtk_spk_i2s_mck = <3>; */
-		mediatek,speaker-codec {
-			sound-dai = <&speaker_amp>;
-		};
 	};
 
 	audio_sram@11212000 {
@@ -4313,7 +4357,6 @@ page_owner=on loop.max_part=7";
 				"MFB_CG_IMG2_MFB",
 				"MFB_CG_IMG1_GALS";
 	};
-
 	imgsys_mfb_b@15820000 {
 		compatible = "mediatek,imgsys_mfb_b";
 		reg = <0 0x15820000 0 0x1000>;
@@ -4380,10 +4423,7 @@ page_owner=on loop.max_part=7";
 	vdec@16000000 {
 		compatible = "mediatek,mt6833-vcodec-dec";
 		reg = <0 0x1602f000 0 0x1000>,		/* VDEC_SYS */
-			 <0 0x16029800 0 0x400>,		/* VDEC_UFO */
 			 <0 0x16020000 0 0x400>,		/* VDEC_VLD */
-			 <0 0x16021000 0 0x1000>,		/* VDEC_MC */
-			 <0 0x16023000 0 0x1000>,		/* VDEC_MV */
 			 <0 0x16025000 0 0x1000>;		/* VDEC_MISC */
 		iommus = <&iommu0 M4U_PORT_L4_VDEC_MC_EXT>;
 		mediatek,larb = <&smi_larb4>;
@@ -5298,6 +5338,19 @@ page_owner=on loop.max_part=7";
 		pu_cfg = <0xe0>;
 		rsel_cfg = <0x110>;
 		aed = <0x1a>;
+	nfc:nfc {
+		compatible = "mediatek,nfc-gpio-v2";
+		gpio-rst = <48>;
+		gpio-rst-std = <&pio 48 0x0>;
+		gpio-irq = <05>;
+		gpio-irq-std = <&pio 05 0x0>;
+	};
+
+	irq_nfc: irq_nfc {
+		compatible = "mediatek,irq_nfc-eint";
+	};
+	/* NFC end */
+
 	};
 
 	i2c8: i2c8@11d00000 {
@@ -5362,6 +5415,12 @@ page_owner=on loop.max_part=7";
 		clock-div = <5>;
 		aed = <0x1a>;
 		mediatek,fifo_only;
+	};
+
+	irtx_pwm:irtx_pwm {
+		compatible = "mediatek,irtx-pwm";
+		pwm_ch = <1>;
+		pwm_data_invert = <0>;
 	};
 
 	/* ATF logger */
@@ -5443,14 +5502,17 @@ page_owner=on loop.max_part=7";
 		/* enable_pe_plus; */
 		enable_pd20_reset;
 		power_path_support;
-		max_charger_voltage = <6500000>;
+		max_charger_voltage = <14500000>;
 		fast_charge_voltage = <3000000>;
 
 		/* charging current */
 		usb_charger_current = <500000>;
 		ac_charger_current = <2050000>;
-		ac_charger_input_current = <3200000>;
-		non_std_ac_charger_current = <500000>;
+		/* BSP.Charge - 2020.03.02 - modify AC_CHARGER_INPUT_CURRENT */
+		ac_charger_input_current = <2050000>;
+		/*BSP.Charge - 2020.11.18 - The charging current of non-standard charger is adjusted to 1A - start*/
+		non_std_ac_charger_current = <1000000>;
+		/*BSP.Charge - 2020.11.18 - The charging current of non-standard charger is adjusted to 1A - end*/
 		charging_host_charger_current = <1500000>;
 		ta_ac_charger_current = <3000000>;
 		pd_charger_current = <500000>;
@@ -5464,7 +5526,8 @@ page_owner=on loop.max_part=7";
 	charger: charger {
 		compatible = "mediatek,charger";
 		algorithm_name = "SwitchCharging2";
-		/* enable_sw_jeita; */
+		/* BSP.Charge - 2020.12.02 - Eanble sw_jeita */
+		enable_sw_jeita;
 		/* enable_pe_plus; */
 		/* enable_pe_2; */
 		/* enable_pe_3; */
@@ -5475,12 +5538,29 @@ page_owner=on loop.max_part=7";
 
 		/* common */
 		battery_cv = <4350000>;
-		max_charger_voltage = <6500000>;
-		min_charger_voltage = <4600000>;
+		/* BSP.Charge - 2021.01.11 - add ffc  parameters - start */
+		enable_sw_ffc;
+		ffc_cv_1 = <4440000>;
+		ffc_cv_2 = <4430000>;
+		ffc_cv_3 = <4420000>;
+		ffc_cv_4 = <4410000>;
+		chg_cycle_count_level1 = <1>;
+		chg_cycle_count_level2 = <100>;
+		chg_cycle_count_level3 = <200>;
+		chg_cycle_count_level4 = <300>;
+		/* BSP.Charge - 2021.01.11 - add ffc  parameters - end */
+		max_charger_voltage = <14500000>;
+		/* BSP.charge -- 2021.02.07 -- lower mivr */
+		min_charger_voltage = <4400000>;
+
+		/* BSP.Charge - 2021.01.12 - add recharger  uisoc limit */
+		recharger_uisoc_limit = <99>;
 
 		/* dynamic mivr */
-		min_charger_voltage_1 = <4400000>;
-		min_charger_voltage_2 = <4200000>;
+		/* BSP.charge -- 2021.02.07 -- lower mivr start */
+		min_charger_voltage_1 = <4200000>;
+		min_charger_voltage_2 = <4000000>;
+		/* BSP.charge -- 2021.02.07 -- lower mivr end */
 		max_dmivr_charger_current = <1400000>;
 
 		/* charging current */
@@ -5489,39 +5569,55 @@ page_owner=on loop.max_part=7";
 		usb_charger_current_configured = <500000>;
 		usb_charger_current = <500000>;
 		ac_charger_current = <2050000>;
-		ac_charger_input_current = <3200000>;
-		non_std_ac_charger_current = <500000>;
+		/* BSP.Charge - 2020.03.02 - modify AC_CHARGER_INPUT_CURRENT */
+		ac_charger_input_current = <2050000>;
+		/*BSP.Charge - 2020.11.18 - The charging current of non-standard charger is adjusted to 1A - start*/
+		non_std_ac_charger_current = <1000000>;
+		/*BSP.Charge - 2020.11.18 - The charging current of non-standard charger is adjusted to 1A - end*/
 		charging_host_charger_current = <1500000>;
 		apple_1_0a_charger_current = <650000>;
 		apple_2_1a_charger_current = <800000>;
 		ta_ac_charger_current = <3000000>;
 
 		/* sw jeita */
-		jeita_temp_above_t4_cv = <4240000>;
-		jeita_temp_t3_to_t4_cv = <4240000>;
-		jeita_temp_t2_to_t3_cv = <4340000>;
-		jeita_temp_t1_to_t2_cv = <4240000>;
-		jeita_temp_t0_to_t1_cv = <4040000>;
-		jeita_temp_below_t0_cv = <4040000>;
-		temp_t4_thres = <50>;
-		temp_t4_thres_minus_x_degree = <47>;
-		temp_t3_thres = <45>;
-		temp_t3_thres_minus_x_degree = <39>;
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - start */
+		jeita_temp_above_t4_cv = <4090000>;
+		jeita_temp_t3_to_t4_cv = <4440000>;
+		jeita_temp_t2_to_t3_cv = <4440000>;
+		jeita_temp_t1_to_t2_cv = <4440000>;
+		jeita_temp_t0_to_t1_cv = <4440000>;
+		jeita_temp_below_t0_cv = <4440000>;
+
+		jeita_temp_t4_to_t5_cc = <2450000>;
+		/* BSP.Charge - 2020.12.17 - modify sw_jeita standard - start */
+		jeita_temp_t3_to_t4_cc = <3200000>;
+		jeita_temp_t2_to_t3_cc = <3200000>;
+		jeita_temp_t1_to_t2_cc = <2450000>;
+		/* BSP.Charge - 2020.12.17 - modify sw_jeita standard - end */
+		jeita_temp_t0_to_t1_cc = <980000>;
+		jeita_temp_below_t0_cc = <490000>;
+
+		temp_t5_thres = <58>;
+		temp_t5_thres_minus_x_degree = <55>;
+		temp_t4_thres = <48>;
+		temp_t4_thres_minus_x_degree = <45>;
+		temp_t3_thres = <15>;
+		temp_t3_thres_plus_x_degree = <23>;
 		temp_t2_thres = <10>;
-		temp_t2_thres_plus_x_degree = <16>;
-		temp_t1_thres = <0>;
-		temp_t1_thres_plus_x_degree = <6>;
+		temp_t2_thres_plus_x_degree = <10>;
+		temp_t1_thres = <5>;
+		temp_t1_thres_plus_x_degree = <5>;
 		temp_t0_thres = <0>;
 		temp_t0_thres_plus_x_degree = <0>;
-		temp_neg_10_thres = <0>;
+		temp_neg_10_thres = <10>;
 
 		/* battery temperature protection */
 		enable_min_charge_temp;
-		min_charge_temp = <0>;
-		min_charge_temp_plus_x_degree = <6>;
-		max_charge_temp = <50>;
-		max_charge_temp_minus_x_degree = <47>;
-
+		min_charge_temp = <10>;
+		min_charge_temp_plus_x_degree = <0>;
+		max_charge_temp = <58>;
+		max_charge_temp_minus_x_degree = <56>;
+		/* BSP.Charge - 2020.12.02 - modify sw_jeita standard - end */
 		/* PE */
 		ta_12v_support;
 		ta_9v_support;
@@ -5644,15 +5740,6 @@ page_owner=on loop.max_part=7";
 &mt6360_pmic {
 	buck2 {
 		/delete-property/ regulator-always-on;
-	};
-};
-
-&i2c6 {
-	speaker_amp: speaker_amp@34 {
-		compatible = "mediatek,speaker_amp";
-		#sound-dai-cells = <0>;
-		reg = <0x34>;
-		status = "okay";
 	};
 };
 
