@@ -18,7 +18,9 @@
 
 #define CPU_DVFS_DT_REG	1
 
-#if defined(CONFIG_MTK_TINYSYS_MCUPM_SUPPORT) || defined(USE_SSPM_VER_V2)
+/* #define CPU_DVFS_NOT_READY 1 */
+
+#ifdef CONFIG_MTK_TINYSYS_MCUPM_SUPPORT
 #define CONFIG_HYBRID_CPU_DVFS	1
 #define READ_SRAM_VOLT          1
 #define PPM_AP_SIDE	1
