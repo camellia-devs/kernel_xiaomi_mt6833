@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -194,8 +195,15 @@ static int pd_tcp_notifier_call(struct notifier_block *nb,
 			pd_sink_current_old = pd_sink_current_new;
 			if (pd_sink_voltage_new && pd_sink_current_new) {
 #if CONFIG_MTK_GAUGE_VERSION == 30
-				charger_manager_enable_power_path(chg_consumer,
-					MAIN_CHARGER, true);
+/* BSP.Charge - 2020.12.09 - check input_suspend state before enable power path - start*/
+				if (charger_manager_is_input_suspend()) {
+					pr_info("%s input_suspend is true\n", __func__);
+					charger_manager_enable_power_path(chg_consumer,
+						MAIN_CHARGER, false);
+				} else
+/* BSP.Charge - 2020.12.09 - check input_suspend state before enable power path - end*/
+					charger_manager_enable_power_path(chg_consumer,
+						MAIN_CHARGER, true);
 #else
 				mtk_chr_pd_enable_power_path(1);
 #endif
