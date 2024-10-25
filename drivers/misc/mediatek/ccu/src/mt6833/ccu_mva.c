@@ -241,8 +241,6 @@ int ccu_deallocate_mem(struct CcuMemHandle *memHandle)
 	return 0;
 }
 
-#define ION_FLAG_FREE_WITHOUT_DEFER (4)
-
 static struct ion_handle *_ccu_ion_alloc(struct ion_client *client,
 	unsigned int heap_id_mask, size_t align, unsigned int size, bool cached, bool ion_log)
 {
@@ -252,7 +250,7 @@ static struct ion_handle *_ccu_ion_alloc(struct ion_client *client,
 	if (ion_log)
 		ts_start = get_ns_systemtime();
 	disp_handle = ion_alloc(client, size, align,
-		heap_id_mask, ((cached)?3:0) | ION_FLAG_FREE_WITHOUT_DEFER);
+		heap_id_mask, (cached)?3:0);
 	if (IS_ERR(disp_handle)) {
 		LOG_ERR("disp_ion_alloc 1error %p\n", disp_handle);
 		return NULL;
