@@ -48,11 +48,11 @@ config MTK_ROUND_CORNER_SUPPORT
 
 config LCM_HEIGHT
 	string "define LCM HEIGHT size"
-	default "1920"
+	default "2340"
 	help
 	  To set LCM resolution height size.
 	  This define is in ProjectConfig.mk.
-	  LCM height can be set 1024/1920/680 etc.
+	  LCM height can be set 1024/2340/680 etc.
 	  If you want to change LCM height, please define it in ProjectConfig.mk.
 
 config LCM_WIDTH
