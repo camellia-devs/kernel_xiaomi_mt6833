@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2018 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -102,9 +103,7 @@ void lbat_test_callback(unsigned int thd)
 #endif
 
 static struct lbat_user lbat_pt;
-#ifndef LOW_BATTERY_PT_SETTING_V2
 static struct lbat_user lbat_pt_ext;
-#endif
 int g_low_battery_level;
 int g_low_battery_stop;
 /* give one change to ignore DLPT power off. battery voltage
@@ -163,10 +162,6 @@ void exec_low_battery_callback(unsigned int thd)
 			low_battery_level = LOW_BATTERY_LEVEL_1;
 		else if (thd == POWER_INT2_VOLT)
 			low_battery_level = LOW_BATTERY_LEVEL_2;
-#ifdef LOW_BATTERY_PT_SETTING_V2
-		else if (thd == POWER_INT3_VOLT)
-			low_battery_level = LOW_BATTERY_LEVEL_3;
-#endif
 		g_low_battery_level = low_battery_level;
 		for (i = 0; i < ARRAY_SIZE(lbcb_tb); i++) {
 			if (lbcb_tb[i].lbcb != NULL)
@@ -211,14 +206,7 @@ void exec_low_battery_callback_ext(unsigned int thd)
 void low_battery_protect_init(void)
 {
 	int ret = 0;
-#ifdef LOW_BATTERY_PT_SETTING_V2
-	unsigned int volt_arr[4] = {POWER_INT0_VOLT, POWER_INT1_VOLT,
-		POWER_INT2_VOLT, POWER_INT3_VOLT};
 
-	ret = lbat_user_register_ext(&lbat_pt, "power throttling",
-				     volt_arr, ARRAY_SIZE(volt_arr),
-				     exec_low_battery_callback);
-#else
 	ret = lbat_user_register(&lbat_pt, "power throttling"
 			, POWER_INT0_VOLT, POWER_INT1_VOLT
 			, POWER_INT2_VOLT, exec_low_battery_callback);
@@ -226,7 +214,6 @@ void low_battery_protect_init(void)
 	ret = lbat_user_register(&lbat_pt_ext, "power throttling ext"
 		, POWER_INT0_VOLT_EXT, POWER_INT1_VOLT_EXT
 		, POWER_INT2_VOLT_EXT, exec_low_battery_callback_ext);
-#endif
 
 #if PMIC_THROTTLING_DLPT_UT
 	ret = lbat_user_register(&lbat_test1, "test1",
@@ -541,7 +528,10 @@ int g_battery_percent_stop;
 int g_battery_percent_level_ext;
 #endif
 
-#define BAT_PERCENT_LINIT 15
+//#ifdef __XIAOMI_CAMERA__
+#define BAT_PERCENT_LINIT 1
+//#define BAT_PERCENT_LINIT 15
+//#endif
 #ifdef BATTERY_PERCENT_NOTIFY_EXT
 #define BAT_PERCENT_LINIT_EXT_LOW 20
 #define BAT_PERCENT_LINIT_EXT_HIGH 25
@@ -1417,17 +1407,13 @@ static ssize_t store_low_battery_protect_ut(
 			__func__, buf, size);
 		pvalue = (char *)buf;
 		ret = kstrtou32(pvalue, 16, (unsigned int *)&val);
-		if (val <= 3) {
+		if (val <= 2) {
 			if (val == LOW_BATTERY_LEVEL_0)
 				thd = POWER_INT0_VOLT;
 			else if (val == LOW_BATTERY_LEVEL_1)
 				thd = POWER_INT1_VOLT;
 			else if (val == LOW_BATTERY_LEVEL_2)
 				thd = POWER_INT2_VOLT;
-#ifdef LOW_BATTERY_PT_SETTING_V2
-			else if (val == LOW_BATTERY_LEVEL_3)
-				thd = POWER_INT3_VOLT;
-#endif
 			pr_info("[%s] your input is %d(%d)\n",
 				__func__, val, thd);
 			exec_low_battery_callback(thd);

@@ -22,7 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
-
+#include <mt-plat/mtk_boot_common.h>
 #include "../inc/mt6360_pmu.h"
 
 bool dbg_log_en; /* module param to enable/disable debug log */
@@ -327,12 +327,14 @@ static int mt6360_pmu_i2c_probe(struct i2c_client *client,
 		dev_err(&client->dev, "subdev register fail\n");
 		goto out_irq;
 	}
-	if (pdata->disable_lpsd) {
+	//BSP.System - 2020.11.25 - diable lp sys reset begin
+	if (pdata->disable_lpsd || get_boot_mode() == RECOVERY_BOOT) {
 		ret = mt6360_pmu_reg_update_bits(mpi, MT6360_PMU_CHG_PUMP,
 						reg_mask, reg_data);
 		if (ret < 0)
 			dev_err(&client->dev, "%s: LPSD set fail\n", __func__);
 	}
+	//BSP.System - 2020.11.25 - diable lp sys reset begin
 	pm_runtime_enable(mpi->dev);
 	dev_info(&client->dev, "%s: successfully probed\n", __func__);
 	return 0;

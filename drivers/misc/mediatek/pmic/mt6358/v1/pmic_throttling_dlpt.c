@@ -25,16 +25,13 @@
 #include <linux/mfd/mt6358/core.h>
 
 #include <mt-plat/upmu_common.h>
-#if defined(CONFIG_MTK_AEE_FEATURE)
 #include <mt-plat/aee.h>
-#endif
 #include <mach/mtk_pmic.h>
 #include "include/pmic.h"
 #include "include/pmic_throttling_dlpt.h"
 #include "include/pmic_auxadc.h"
 #include <pmic_lbat_service.h>
 #include <mt-plat/mtk_charger.h>
-#include "mtk_devinfo.h"
 
 #if defined(CONFIG_MTK_BASE_POWER)
 #include <mtk_idle.h>
@@ -55,9 +52,6 @@
 #include <mach/mtk_battery_meter.h>
 #endif
 #endif
-
-#define _BITMASK_(_bits_)	(((unsigned int) -1 >> (31 - ((1) ? _bits_))) \
-						& ~((1U << ((0) ? _bits_)) - 1))
 
 /*****************************************************************************
  * PMIC related define
@@ -107,9 +101,6 @@ void lbat_test_callback(unsigned int thd)
 #endif
 
 static struct lbat_user lbat_pt;
-#ifdef LBAT_LIMIT_BCPU_OPP
-static struct lbat_user lbat_pt_ext;
-#endif
 int g_low_battery_level;
 int g_low_battery_stop;
 /* give one change to ignore DLPT power off. battery voltage
@@ -126,11 +117,6 @@ struct low_battery_callback_table lbcb_tb[] = {
 	{NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}
 };
 
-struct low_battery_callback_table lbcb_tb_ext[] = {
-	{NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL},
-	{NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}
-};
-
 void register_low_battery_notify(
 	void (*low_battery_callback)(enum LOW_BATTERY_LEVEL_TAG),
 	enum LOW_BATTERY_PRIO_TAG prio_val)
@@ -138,17 +124,6 @@ void register_low_battery_notify(
 	PMICLOG("[%s] start\n", __func__);
 
 	lbcb_tb[(unsigned int)prio_val].lbcb = low_battery_callback;
-
-	pr_info("[%s] prio_val=%d\n", __func__, prio_val);
-}
-
-void register_low_battery_notify_ext(
-	void (*low_battery_callback)(enum LOW_BATTERY_LEVEL_TAG),
-	enum LOW_BATTERY_PRIO_TAG prio_val)
-{
-	PMICLOG("[%s] start\n", __func__);
-
-	lbcb_tb_ext[(unsigned int)prio_val].lbcb = low_battery_callback;
 
 	pr_info("[%s] prio_val=%d\n", __func__, prio_val);
 }
@@ -184,75 +159,13 @@ void exec_low_battery_callback(unsigned int thd)
 #endif
 }
 
-void exec_low_battery_callback_ext(unsigned int thd)
-{
-	int i = 0;
-	enum LOW_BATTERY_LEVEL_TAG low_battery_level = 0;
-
-	if (g_low_battery_stop == 1) {
-		pr_info("[%s] g_low_battery_stop=%d\n"
-			, __func__, g_low_battery_stop);
-	} else {
-		if (thd == POWER_INT0_VOLT_EXT)
-			low_battery_level = LOW_BATTERY_LEVEL_0;
-		else if (thd == POWER_INT1_VOLT_EXT)
-			low_battery_level = LOW_BATTERY_LEVEL_1;
-		else if (thd == POWER_INT2_VOLT_EXT)
-			low_battery_level = LOW_BATTERY_LEVEL_2;
-
-		for (i = 0; i < ARRAY_SIZE(lbcb_tb_ext); i++) {
-			if (lbcb_tb_ext[i].lbcb != NULL)
-				lbcb_tb_ext[i].lbcb(low_battery_level);
-		}
-	}
-	pr_info("[%s] prio_val=%d,low_battery=%d\n"
-			, __func__, i, low_battery_level);
-}
-
 void low_battery_protect_init(void)
 {
 	int ret = 0;
-#ifdef LBAT_LIMIT_BCPU_OPP
-	u32 fab_info = 0, ptp_info = 0, fab_info11 = 0, id0 = 0, id1 = 0;
-#endif
 
 	ret = lbat_user_register(&lbat_pt, "power throttling"
 			, POWER_INT0_VOLT, POWER_INT1_VOLT
 			, POWER_INT2_VOLT, exec_low_battery_callback);
-
-#ifdef LBAT_LIMIT_BCPU_OPP
-	id0 = get_devinfo_with_index(12);
-	id1 = get_devinfo_with_index(13);
-	pr_info("[%s] id0[31:16]=%u id0[15:0]=%u id1[31:16]=%u id0[15:0]=%u\n",
-		__func__, ((id0 & _BITMASK_(31:16)) >> 16), (id0 & _BITMASK_(15:0)),
-		((id1 & _BITMASK_(31:16)) >> 16), (id1 & _BITMASK_(15:0)));
-
-	fab_info11 = get_devinfo_with_index(141);
-	fab_info = get_devinfo_with_index(130);
-	ptp_info = get_devinfo_with_index(69);
-
-	pr_info("[%s] fab_info11=0x%x fab_info=0x%x ptpod19=0x%x\n"
-			, __func__, fab_info11, fab_info, ptp_info);
-
-	fab_info11 = fab_info11 & _BITMASK_(7:0);
-	fab_info = (fab_info & _BITMASK_(3:2)) >> 2;
-	ptp_info = (ptp_info & _BITMASK_(31:30)) >> 30;
-
-	if (ptp_info == 0x3 && fab_info11 == 0x4) {
-		pr_info("Error: ptp=%d fab=%d, power bin Fail IC, reboot!!!\n",
-			ptp_info, fab_info11);
-		BUG();
-	}
-
-	if (!(fab_info == 0x2 || (fab_info == 0x0 && ptp_info == 0x1))) {
-		ret = lbat_user_register(&lbat_pt_ext, "power throttling ext"
-			, POWER_INT0_VOLT_EXT, POWER_INT1_VOLT_EXT
-			, POWER_INT2_VOLT_EXT, exec_low_battery_callback_ext);
-		pr_info("BIN2 IC, register throttling ext\n");
-	} else
-		pr_info("BIN1 IC, NOT register throttling ext\n");
-#endif
-
 #if PMIC_THROTTLING_DLPT_UT
 	ret = lbat_user_register(&lbat_test1, "test1",
 		3450, 3200, 3000, lbat_test_callback);
@@ -305,12 +218,6 @@ int dlpt_check_power_off(void)
 
 #else
 void __attribute__ ((weak)) register_low_battery_notify(
-	void (*low_battery_callback)(enum LOW_BATTERY_LEVEL_TAG),
-	enum LOW_BATTERY_PRIO_TAG prio_val)
-{
-}
-
-void __attribute__ ((weak)) register_low_battery_notify_ext(
 	void (*low_battery_callback)(enum LOW_BATTERY_LEVEL_TAG),
 	enum LOW_BATTERY_PRIO_TAG prio_val)
 {
@@ -522,6 +429,7 @@ void __attribute__ ((weak)) register_battery_oc_notify(
 #endif
 
 #ifdef BATTERY_PERCENT_PROTECT
+static struct hrtimer bat_percent_notify_timer;
 static struct task_struct *bat_percent_notify_thread;
 static bool bat_percent_notify_flag;
 static DECLARE_WAIT_QUEUE_HEAD(bat_percent_notify_waiter);
@@ -544,8 +452,6 @@ struct battery_percent_callback_table bpcb_tb[] = {
 	{NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL},
 	{NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}
 };
-
-static struct notifier_block dlpt_nb = {0};
 
 void register_battery_percent_notify(
 	void (*battery_percent_callback)(enum BATTERY_PERCENT_LEVEL_TAG),
@@ -610,68 +516,65 @@ void exec_battery_percent_callback(
 
 int bat_percent_notify_handler(void *unused)
 {
+	ktime_t ktime;
+	int bat_per_val = 0;
+
 	do {
+		ktime = ktime_set(10, 0);
+
 		wait_event_interruptible(bat_percent_notify_waiter,
 					 (bat_percent_notify_flag == true));
 
 		__pm_stay_awake(&bat_percent_notify_lock);
 		mutex_lock(&bat_percent_notify_mutex);
 
-		exec_battery_percent_callback(g_battery_percent_level);
+#if (CONFIG_MTK_GAUGE_VERSION == 30)
+		bat_per_val = battery_get_uisoc();
+#endif
+		if ((upmu_get_rgs_chrdet() == 0) &&
+		    (g_battery_percent_level == 0) &&
+		    (bat_per_val <= BAT_PERCENT_LINIT)) {
+			g_battery_percent_level = 1;
+			exec_battery_percent_callback(BATTERY_PERCENT_LEVEL_1);
+		} else if ((g_battery_percent_level == 1) &&
+			   (bat_per_val > BAT_PERCENT_LINIT)) {
+			g_battery_percent_level = 0;
+			exec_battery_percent_callback(BATTERY_PERCENT_LEVEL_0);
+		}
 		bat_percent_notify_flag = false;
-		PMICLOG("[%s] bat_per_level=%d\n", __func__,
-			g_battery_percent_level);
+
+		PMICLOG("bat_per_level=%d,bat_per_val=%d\n"
+			, g_battery_percent_level, bat_per_val);
 
 		mutex_unlock(&bat_percent_notify_mutex);
 		__pm_relax(&bat_percent_notify_lock);
+
+		hrtimer_start(&bat_percent_notify_timer,
+			ktime, HRTIMER_MODE_REL);
+
 	} while (!kthread_should_stop());
 
 	return 0;
 }
 
-int dlpt_psy_event(struct notifier_block *nb, unsigned long event, void *v)
+enum hrtimer_restart bat_percent_notify_task(struct hrtimer *timer)
 {
-	struct power_supply *psy = v;
-	union power_supply_propval val;
-	int ret = 0;
-	int uisoc = -1, bat_status = -1;
+	bat_percent_notify_flag = true;
+	wake_up_interruptible(&bat_percent_notify_waiter);
 
-	if (strcmp(psy->desc->name, "battery") == 0) {
-		ret = power_supply_get_property(psy,
-			POWER_SUPPLY_PROP_CAPACITY, &val);
-		if (!ret)
-			uisoc = val.intval;
-
-		ret = power_supply_get_property(psy,
-			POWER_SUPPLY_PROP_STATUS, &val);
-		if (!ret)
-			bat_status = val.intval;
-
-		if ((bat_status != POWER_SUPPLY_STATUS_CHARGING &&
-			bat_status != -1) &&
-			(g_battery_percent_level == BATTERY_PERCENT_LEVEL_0) &&
-			(uisoc <= BAT_PERCENT_LINIT && uisoc > 0)) {
-			g_battery_percent_level = BATTERY_PERCENT_LEVEL_1;
-			bat_percent_notify_flag = true;
-			wake_up_interruptible(&bat_percent_notify_waiter);
-			PMICLOG("bat_percent_notify called, l=%d s=%d soc=%d\n",
-				g_battery_percent_level, bat_status, uisoc);
-		} else if ((bat_status != -1) &&
-			(g_battery_percent_level == BATTERY_PERCENT_LEVEL_1) &&
-			   (uisoc > BAT_PERCENT_LINIT)) {
-			g_battery_percent_level = BATTERY_PERCENT_LEVEL_0;
-			bat_percent_notify_flag = true;
-			wake_up_interruptible(&bat_percent_notify_waiter);
-			PMICLOG("bat_percent_notify called, l=%d s=%d soc=%d\n",
-				g_battery_percent_level, bat_status, uisoc);
-		}
-	}
-
-	return NOTIFY_DONE;
+	return HRTIMER_NORESTART;
 }
 
 void bat_percent_notify_init(void)
 {
+	ktime_t ktime;
+
+	ktime = ktime_set(20, 0);
+	hrtimer_init(&bat_percent_notify_timer,
+		CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	bat_percent_notify_timer.function = bat_percent_notify_task;
+	hrtimer_start(&bat_percent_notify_timer, ktime, HRTIMER_MODE_REL);
+
 	wakeup_source_init(&bat_percent_notify_lock,
 		"bat_percent_notify_lock wakelock");
 
@@ -682,9 +585,6 @@ void bat_percent_notify_init(void)
 		pr_notice("Failed to create bat_percent_notify_thread\n");
 	else
 		pr_info("Create bat_percent_notify_thread : done\n");
-
-	dlpt_nb.notifier_call = dlpt_psy_event;
-	power_supply_reg_notifier(&dlpt_nb);
 }
 #else
 void __attribute__ ((weak)) register_battery_percent_notify(
@@ -787,7 +687,6 @@ int do_ptim_gauge(bool isSuspend, unsigned int *bat,
 #endif
 
 #ifdef DLPT_FEATURE_SUPPORT
-#define DLPT_NOTIFY_FAST_UISOC 30
 
 static unsigned int ptim_bat_vol;
 static signed int ptim_R_curr;
@@ -1082,11 +981,7 @@ int get_dlpt_imix(void)
 				ptim_lock();
 				wk_auxadc_reset();
 				ptim_unlock();
-			} else if (count_do_ptim > 6) {
-				pr_notice("do_ptim more than eight times\n");
-#if defined(CONFIG_MTK_AEE_FEATURE)
 				aee_kernel_warning("PTIM timeout", "PTIM");
-#endif
 				break;
 			}
 			count_do_ptim++;
@@ -1127,13 +1022,11 @@ int get_dlpt_imix(void)
 
 }
 
-#if (CONFIG_MTK_GAUGE_VERSION == 30)
 static int get_dlpt_imix_charging(void)
 {
 	int zcv_val = 0;
 	int vsys_min_1_val = DLPT_VOLT_MIN;
 	int imix = 0;
-	int ret = 0;
 	static struct iio_channel *chan;
 
 	if (chan == NULL) {
@@ -1148,12 +1041,7 @@ static int get_dlpt_imix_charging(void)
 			is_power_path_supported());
 		return 0;
 	}
-	ret = iio_read_channel_processed(chan, &zcv_val);
-	if (ret < 0) {
-		pr_notice("[%s] iio_read_channel_processed error\n",
-			  __func__);
-		return 0;
-	}
+	iio_read_channel_processed(chan, &zcv_val);
 	imix = (zcv_val - vsys_min_1_val) * 1000 / ptim_rac_val_avg * 9 / 10;
 	PMICLOG("[%s] %d %d %d %d\n", __func__,
 		imix, zcv_val, vsys_min_1_val, ptim_rac_val_avg);
@@ -1164,7 +1052,6 @@ static int get_dlpt_imix_charging(void)
 /* for dlpt_notify_handler */
 static int g_low_per_timer;
 static int g_low_per_timeout_val = 60;
-#endif
 
 int dlpt_notify_handler(void *unused)
 {
@@ -1179,11 +1066,14 @@ int dlpt_notify_handler(void *unused)
 	cur_ui_soc = pre_ui_soc;
 
 	do {
-		if (pre_ui_soc > DLPT_NOTIFY_FAST_UISOC)
-			dlpt_notify_interval = HZ * 20;
+#if defined(CONFIG_MTK_BASE_POWER)
+		if (dpidle_active_status())
+			dlpt_notify_interval = HZ * 20; /* light-loading mode */
 		else
-			dlpt_notify_interval = HZ * 10;
-
+			dlpt_notify_interval = HZ * 10; /* normal mode */
+#else
+		dlpt_notify_interval = HZ * 10; /* normal mode */
+#endif
 		wait_event_interruptible(dlpt_notify_waiter,
 			(dlpt_notify_flag == true));
 
@@ -1339,15 +1229,6 @@ static ssize_t store_low_battery_protect_ut(
 			pr_info("[%s] your input is %d(%d)\n",
 				__func__, val, thd);
 			exec_low_battery_callback(thd);
-			if (val == LOW_BATTERY_LEVEL_0)
-				thd = POWER_INT0_VOLT_EXT;
-			else if (val == LOW_BATTERY_LEVEL_1)
-				thd = POWER_INT1_VOLT_EXT;
-			else if (val == LOW_BATTERY_LEVEL_2)
-				thd = POWER_INT2_VOLT_EXT;
-			pr_info("[%s] your input is %d(%d)\n",
-				__func__, val, thd);
-			exec_low_battery_callback_ext(thd);
 		} else {
 			pr_info("[%s] wrong number (%d)\n", __func__, val);
 		}
@@ -1943,7 +1824,6 @@ int pmic_throttling_dlpt_init(struct platform_device *pdev)
 
 	/* no need to depend on LOW_BATTERY_PROTECT */
 	lbat_service_init(pdev);
-
 #ifdef LOW_BATTERY_PROTECT
 	low_battery_protect_init();
 #else

@@ -9,24 +9,13 @@ ccflags-y += -I$(srctree)/drivers/misc/mediatek/usb_c/tcpc/inc
 subdir-ccflags-y += -Werror -I$(srctree)/drivers/misc/mediatek/pmic/include
 
 ifeq ($(CONFIG_MTK_TINYSYS_SSPM_SUPPORT), y)
-ifeq ($(CONFIG_MACH_MT6781),y)
-# SSPM V2
-ccflags-y += -I$(srctree)/drivers/misc/mediatek/sspm/v2
-ccflags-y += -I$(srctree)/drivers/misc/mediatek/sspm/mt6781/
-obj-y += pmic_ipi_v2.o
-else
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/sspm/
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/sspm/$(MTK_PLATFORM)/
 obj-y += pmic_ipi.o
 endif
-endif
 
 ifeq ($(CONFIG_MTK_GAUGE_VERSION),30)
-ifeq ($(CONFIG_MACH_MT6781),y)
-obj-y += mt6366_gauge.o
-else
 obj-y += mt6358_gauge.o
-endif
 endif
 
 obj-$(CONFIG_MTK_PMIC_CHIP_MT6358)	+= pmic.o pmic_common.o \
@@ -40,9 +29,8 @@ obj-$(CONFIG_MTK_PMIC_CHIP_MT6358)	+= pmic.o pmic_common.o \
 		pmic_efuse.o \
 		pmic_throttling_dlpt.o \
 
+		#TODO
 		#pmic_bif.o \
-
-obj-$(CONFIG_MTK_PMIC_CHIP_MT6358) += pmic_oc_debug.o
 
 ifndef CONFIG_MTK_EXTERNAL_CHARGER_TYPE_DETECT
 obj-$(CONFIG_MTK_PMIC_CHIP_MT6358) += pmic_dummy_chr_type_det.o
