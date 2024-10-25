@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1195,6 +1196,8 @@ static int ion_mm_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 	int i;
 	bool has_orphaned = false;
 	struct ion_mm_buffer_info *bug_info;
+	unsigned long uncached_total = 0;
+	unsigned long cached_total = 0;
 	unsigned long long current_ts;
 
 	current_ts = sched_clock();
@@ -1214,6 +1217,12 @@ static int ion_mm_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 			 pool->low_count, pool->order,
 			 (1 << pool->order) * PAGE_SIZE *
 			 pool->low_count);
+
+		uncached_total += (1 << pool->order) * PAGE_SIZE *
+			pool->high_count;
+		uncached_total += (1 << pool->order) * PAGE_SIZE *
+			pool->low_count;
+
 		pool = sys_heap->cached_pools[i];
 		ION_DUMP(s,
 			 "%d order %u highmem pages in cached_pool = %lu total\n",
@@ -1225,7 +1234,20 @@ static int ion_mm_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 			 pool->low_count, pool->order,
 			 (1 << pool->order) * PAGE_SIZE *
 			 pool->low_count);
+
+		cached_total += (1 << pool->order) * PAGE_SIZE *
+			 pool->high_count;
+		cached_total += (1 << pool->order) * PAGE_SIZE *
+			 pool->low_count;
 	}
+
+	ION_DUMP(s,
+		"uncached pool = %lu cached pool = %lu\n",
+		uncached_total, cached_total);
+	ION_DUMP(s,
+		"pool total (uncached + cached) = %lu\n",
+		uncached_total + cached_total);
+
 	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
 		ION_DUMP(s, "mm_heap_freelist total_size=%zu\n",
 			 ion_heap_freelist_size(heap));
@@ -2031,14 +2053,6 @@ long ion_mm_ioctl(struct ion_client *client, unsigned int cmd,
 			int domain_idx = ion_get_domain_id(
 				1, &param.config_buffer_param.module_id);
 			buffer_sec = buffer_info->security;
-			if (domain_idx < 0 ||
-			    (domain_idx >= DOMAIN_NUM &&
-			    domain_idx != MTK_GET_DOMAIN_IGNORE)) {
-				IONMSG("%s ION_FB_HEAP dom out of bound\n", __func__);
-				ret = -EINVAL;
-				ion_drv_put_kernel_handle(kernel_handle);
-				break;
-			}
 #ifndef CONFIG_MTK_IOMMU_V2
 			if (buffer_info->MVA[domain_idx] == 0) {
 #endif
@@ -2049,13 +2063,6 @@ long ion_mm_ioctl(struct ion_client *client, unsigned int cmd,
 				buffer_info->coherent =
 				    param.config_buffer_param.coherent;
 				if (param.mm_cmd == ION_MM_CONFIG_BUFFER_EXT) {
-					if (domain_idx == MTK_GET_DOMAIN_IGNORE) {
-						IONMSG("%s GPU not support ION_FB_HEAP_EXT\n",
-						       __func__);
-						ret = -EINVAL;
-						ion_drv_put_kernel_handle(kernel_handle);
-						break;
-				}
 					buffer_info->iova_start[domain_idx] =
 				param.config_buffer_param.reserve_iova_start;
 					buffer_info->iova_end[domain_idx] =
