@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,7 +25,7 @@ enum {
 	HF_MANAGER_SENSOR_ENABLE_CALI,
 	HF_MANAGER_SENSOR_CONFIG_CALI,
 	HF_MANAGER_SENSOR_SELFTEST,
-	HF_MANAGER_SENSOR_RAWDATA,
+	HF_MANAGER_SENSOR_RAWDATA = 7,
 };
 
 enum {

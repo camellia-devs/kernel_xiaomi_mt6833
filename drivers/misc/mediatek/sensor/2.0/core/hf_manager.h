@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -33,6 +34,8 @@
 #define HF_DEVICE_IO_POLLING   1
 
 #define HF_CLIENT_FIFO_SIZE 128
+
+#define HF_MANAGER_DEBUG
 
 struct coordinate {
 	int8_t sign[3];
