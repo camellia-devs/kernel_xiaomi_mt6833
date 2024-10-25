@@ -457,6 +457,21 @@ export RCS_FIND_IGNORE := \( -name SCCS -o -name BitKeeper -o -name .svn -o    \
 export RCS_TAR_IGNORE := --exclude SCCS --exclude BitKeeper --exclude .svn \
 			 --exclude CVS --exclude .pc --exclude .hg --exclude .git
 
+#########################USE CCACHE Start########################
+ifneq ($(USE_CCACHE),)
+    export CCACHE_COMPILERCHECK := content
+    export CCACHE_SLOPPINESS := time_macros,include_file_mtime,file_macro
+    export CCACHE_BASEDIR := /
+    ccache := $(strip $(wildcard $(PWD)/../$(CCACHE_EXEC)))
+    ifdef ccache
+        ifneq ($(ccache),$(firstword $(CC)))
+            CC := $(ccache) $(CC)
+        endif
+        ccache =
+    endif
+endif
+#########################USE CCACHE End########################
+
 # ===========================================================================
 # Rules shared between *config targets and build targets
 
