@@ -150,6 +150,7 @@ static void ppm_limit_callback(struct ppm_client_req req)
 	wake_up_process(ppm_kthread);
 }
 
+
 void ppm_notifier(void)
 {
 	unsigned int cpu;
