@@ -36,6 +36,8 @@ enum led_brightness {
 struct led_classdev {
 	const char		*name;
 	enum led_brightness	 brightness;
+        /* BSP.LCM - 2021.3.17 - modify to add brightness_clone */
+        enum led_brightness      brightness_clone;
 	enum led_brightness	 max_brightness;
 	int			 flags;
 
